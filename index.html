@@ -1434,7 +1434,7 @@ main{
       <div class="card-title card-title-with-actions">
         <span>兒童基本資料</span>
         <div class="basic-title-actions">
-          <button id="waitingListBtn" class="btn-tool" type="button">候診清單</button>
+          <button id="waitingListBtn" class="btn-tool" type="button" hidden>候診清單</button>
           <button id="webSettingsBtn" class="btn-tool" type="button">路徑設定</button>
           <button id="hisSyncBtn" class="btn-tool" type="button">HIS同步</button>
           <button id="reservedBtn" class="btn-tool" type="button">說明</button>
@@ -1652,7 +1652,7 @@ main{
 對於本網頁所載資料的準確性、完整性或安全性，本網頁不作任何明示或暗示的保證。如因使用本網頁資料或連結而引致任何損失或損害，本網頁概不負責。
 
 懷生小兒科診所 劉醫師  2026.07.26</script>
-<!-- index-CHA_v145Final：liou連線測試改由本機代理自動處理 CORS，支援 file:// 與 http://127.0.0.1:8765 開啟 -->
+<!-- index-CHA_v146：liou連線測試改由本機代理自動處理 CORS，支援 file:// 與 http://127.0.0.1:8765 開啟 -->
 
 <div id="disclaimerOverlay" class="save-confirm-overlay" hidden>
   <div class="save-confirm-dialog disclaimer-dialog" role="dialog" aria-modal="true" aria-labelledby="disclaimerTitle">
@@ -1996,6 +1996,13 @@ function embeddedJson(id){
 
 const $ = id => document.getElementById(id);
 const pad2 = n => String(n).padStart(2,"0");
+
+const WAITING_LIST_HOSPITAL_PREFIX="351706153";
+function updateWaitingListButtonVisibility(){
+  const button=$("waitingListBtn");
+  const hospitalId=String($("hospitalId")?.value || "").trim();
+  if(button) button.hidden=!hospitalId.startsWith(WAITING_LIST_HOSPITAL_PREFIX);
+}
 
 function showNamedDirectoryPicker(title,message,options){
   return new Promise((resolve,reject)=>{
@@ -4834,6 +4841,7 @@ async function loadReferenceData(){
     $("hospitalName").value=valueByKeys(o,["HospitalName","hospitalName","clinicName","ClinicName"]);
     $("hospitalId").value=valueByKeys(o,["HospitalID","hospitalID","hospitalId","clinicId","ClinicID"]);
     $("doctorName").value=valueByKeys(o,["doctorName","DoctorName","doctor","physicianName"]);
+    updateWaitingListButtonVisibility();
   }
   cardData=card;
   examData=exam;
@@ -5467,6 +5475,7 @@ async function showFirstLaunchSavePathSetup(){
       $("hospitalName").value=hospitalName || "小兒科診所";
       $("hospitalId").value=hospitalId || "351";
       $("doctorName").value=doctorName || "劉醫師";
+      updateWaitingListButtonVisibility();
       saveOpdSettingsLocal();
 
       localStorage.setItem(FIRST_LAUNCH_SETUP_KEY,"1");
@@ -6225,6 +6234,7 @@ function loadOpdSettingsLocal(){
     if(settings.HospitalName!==undefined) $("hospitalName").value=settings.HospitalName;
     if(settings.HospitalID!==undefined) $("hospitalId").value=settings.HospitalID;
     if(settings.doctorName!==undefined) $("doctorName").value=settings.doctorName;
+    updateWaitingListButtonVisibility();
     return true;
   }catch(err){
     console.error("MyOPDSET localStorage 讀取失敗",err);
@@ -7393,6 +7403,7 @@ function applyData(input){
   if(hName) $("hospitalName").value=hName;
   if(hId) $("hospitalId").value=hId;
   if(doctor) $("doctorName").value=doctor;
+  updateWaitingListButtonVisibility();
 
   recalculate();
 }
@@ -8411,6 +8422,8 @@ $("uploadQueryOverlay").addEventListener("click",event=>{
 });
 
 
+$("hospitalId").addEventListener("input",updateWaitingListButtonVisibility);
+
 $("editOpdBtn").addEventListener("click",async()=>{
   const editing=$("editOpdBtn").dataset.editing==="1";
   if(!editing){
@@ -8450,6 +8463,7 @@ window.addEventListener("DOMContentLoaded",async()=>{
   bindAutoSave();
   await checkLocalProxyHealth(false);
   if(!restoreFullPageState()) recalculate();
+  updateWaitingListButtonVisibility();
   initializeFirstLaunchSavePathSetup();
 });
 </script>
