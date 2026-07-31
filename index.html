@@ -5780,6 +5780,71 @@ async function saveJsonWithPicker(data,defaultName,pickerId="child-health-json-s
 }
 
 
+// v152：「基本資料儲存」與「健檢進度儲存」固定使用另存新檔。
+// 每次按鍵都開啟系統檔案選擇器，讓使用者決定檔名與儲存位置。
+async function saveJsonAsFile(data,defaultName,pickerId){
+  const jsonText=JSON.stringify(data,null,2);
+  const blob=new Blob([jsonText],{type:"application/json;charset=utf-8"});
+
+  if("showSaveFilePicker" in window){
+    let writable=null;
+    try{
+      const options={
+        id:pickerId,
+        suggestedName:defaultName,
+        excludeAcceptAllOption:true,
+        types:[{
+          description:"JSON 檔案 (*.json)",
+          accept:{"application/json":[".json"]}
+        }]
+      };
+
+      // 只將上次位置當作起始位置；每次仍會顯示「另存新檔」視窗。
+      const startHandle=(cachedLastSaveFileHandle && cachedLastSaveFileHandle.kind==="file")
+        ? cachedLastSaveFileHandle
+        : ((cachedSaveDirectoryHandle && cachedSaveDirectoryHandle.kind==="directory")
+          ? cachedSaveDirectoryHandle
+          : null);
+      if(startHandle) options.startIn=startHandle;
+
+      const handle=await window.showSaveFilePicker(options);
+      writable=await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      writable=null;
+
+      const savedFile=await handle.getFile();
+      if(savedFile.size!==blob.size){
+        throw new Error(`檔案寫入不完整（預期 ${blob.size} bytes，實際 ${savedFile.size} bytes）`);
+      }
+
+      await rememberLastSaveFileHandle(handle);
+      await requestPersistentStorage();
+      return true;
+    }catch(err){
+      if(writable){
+        try{await writable.abort();}catch(_err){}
+      }
+      if(err && err.name==="AbortError"){
+        setStatus("已取消另存新檔。",false);
+        return false;
+      }
+      console.error("JSON 另存新檔失敗",err);
+      setStatus(`另存新檔失敗：${err && err.message ? err.message : "未知錯誤"}`,true);
+      return false;
+    }
+  }
+
+  // 不支援 File System Access API 時退回瀏覽器下載。
+  // 使用者可在瀏覽器下載設定中開啟「每次下載前詢問儲存位置」。
+  const downloaded=downloadBlobDirectly(blob,defaultName);
+  if(!downloaded){
+    setStatus("目前瀏覽器無法開啟另存新檔，請改用最新版 Chrome 或 Edge。",true);
+  }
+  return downloaded;
+}
+
+
 function healthUploadJsonBlob(data){
   return new Blob([JSON.stringify(data,null,2)],{type:"application/json;charset=utf-8"});
 }
@@ -8125,7 +8190,7 @@ $("saveBtn").addEventListener("click",async()=>{
   }
 
   const fileName=`CT-${idNo}-${childName}.json`;
-  const saved=await saveJsonWithPicker(basicData,fileName,SHARED_SAVE_PICKER_ID);
+  const saved=await saveJsonAsFile(basicData,fileName,"ch-basic-json-save-v152");
   if(saved){
     localStorage.setItem(STORAGE_KEY,JSON.stringify(basicData));
     saveFullPageStateNow();
@@ -8166,7 +8231,7 @@ $("exportBtn").addEventListener("click",async()=>{
   const childName=safeFileName(rawChildName);
   const idNo=safeFileName(rawIdNo);
   const fileName=`CU-${idNo}-${childName}-${code}-${dateText}.json`;
-  const saved=await saveJsonWithPicker(fullExamData,fileName,SHARED_SAVE_PICKER_ID);
+  const saved=await saveJsonAsFile(fullExamData,fileName,"ch-progress-json-save-v152");
   if(saved){
     localStorage.setItem(STORAGE_KEY,JSON.stringify(collectData()));
     saveFullPageStateNow();
@@ -9739,17 +9804,71 @@ function buildUploadRow(code,headers){
   return headers.map(header=>values[header] ?? "");
 }
 
-async function saveXlsxBlob(blob,fileName,preferredDirectoryHandle=null){
-  return await saveBlobWithPathPicker(
-    blob,
-    fileName,
-    "Excel 活頁簿",
-    {"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":[".xlsx"]},
-    SHARED_SAVE_PICKER_ID,
-    preferredDirectoryHandle
-  );
+// v151：「輸出XLS」固定使用另存新檔，可由使用者選擇檔名與儲存位置。
+async function saveXlsxBlobAs(blob,fileName){
+  if(!(blob instanceof Blob)){
+    setStatus("XLS 另存新檔失敗：待儲存內容格式錯誤。",true);
+    return false;
+  }
+
+  if("showSaveFilePicker" in window){
+    let writable=null;
+    try{
+      const options={
+        id:"ch-xlsx-save-v151",
+        suggestedName:fileName,
+        excludeAcceptAllOption:true,
+        types:[{
+          description:"Excel 活頁簿 (*.xlsx)",
+          accept:{"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":[".xlsx"]}
+        }]
+      };
+
+      // 使用上次另存新檔的位置作為起始資料夾，但仍會每次顯示另存新檔視窗。
+      const startHandle=(cachedLastSaveFileHandle && cachedLastSaveFileHandle.kind==="file")
+        ? cachedLastSaveFileHandle
+        : ((cachedSaveDirectoryHandle && cachedSaveDirectoryHandle.kind==="directory")
+          ? cachedSaveDirectoryHandle
+          : null);
+      if(startHandle) options.startIn=startHandle;
+
+      const handle=await window.showSaveFilePicker(options);
+      writable=await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      writable=null;
+
+      const savedFile=await handle.getFile();
+      if(savedFile.size!==blob.size){
+        throw new Error(`檔案寫入不完整（預期 ${blob.size} bytes，實際 ${savedFile.size} bytes）`);
+      }
+
+      await rememberLastSaveFileHandle(handle);
+      await requestPersistentStorage();
+      return true;
+    }catch(err){
+      if(writable){
+        try{await writable.abort();}catch(_err){}
+      }
+      if(err && err.name==="AbortError"){
+        setStatus("已取消 XLS 另存新檔。",false);
+        return false;
+      }
+      console.error("XLS 另存新檔失敗",err);
+      setStatus(`XLS 另存新檔失敗：${err && err.message ? err.message : "未知錯誤"}`,true);
+      return false;
+    }
+  }
+
+  // 不支援 File System Access API 時，退回瀏覽器下載；瀏覽器設定為每次詢問位置時仍會顯示另存新檔。
+  const downloaded=downloadBlobDirectly(blob,fileName);
+  if(!downloaded){
+    setStatus("目前瀏覽器無法開啟 XLS 另存新檔，請改用最新版 Chrome 或 Edge。",true);
+  }
+  return downloaded;
 }
 
+// index-CHA_v151：輸出XLS改為另存新檔模式。
 async function exportChildExamXlsx(){
   const code=getHealthExamCode(currentAge);
   if(!code || !CHILD_XLS_TEMPLATES[code]){
@@ -9785,10 +9904,11 @@ async function exportChildExamXlsx(){
   const dateText=rocDateDigits($("examDate").value);
   const fileName=safeFileName(`兒童預防保健IC${code}次批次上傳(${childName}${idNo}-${code}-${dateText})`)+".xlsx";
   const blob=buildXlsxBlob(sheets);
-  const saved=await saveXlsxBlob(blob,fileName);
+  const saved=await saveXlsxBlobAs(blob,fileName);
   if(saved) setStatus(`已輸出 ${fileName}`,false);
 }
 </script>
 
+<!-- index-CHA_v152：基本資料儲存與健檢進度儲存改為另存新檔模式。 -->
 </body>
 </html>
