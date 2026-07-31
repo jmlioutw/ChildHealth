@@ -1557,7 +1557,7 @@ main{
 
               <label class="settings-label" for="hospitalIdSettingInput" style="margin-top:18px">醫事機構代碼（Hospital ID） <span class="required">*</span></label>
               <input id="hospitalIdSettingInput" type="text" value="" readonly autocomplete="off">
-              <div class="settings-help">帳號與醫事機構代碼連動；修改任一欄位會同步另一欄位。</div>
+              <div class="settings-help">登入帳號與醫事機構代碼為不同欄位，請分別填寫；Hospital ID 應填院所的 10 碼醫事機構代碼。</div>
 
               <label class="settings-label" for="apiKeyInput" style="margin-top:18px">API KEY</label>
               <input id="apiKeyInput" type="text" value="iisi@89691969" readonly autocomplete="off">
@@ -1652,7 +1652,7 @@ main{
 對於本網頁所載資料的準確性、完整性或安全性，本網頁不作任何明示或暗示的保證。如因使用本網頁資料或連結而引致任何損失或損害，本網頁概不負責。
 
 懷生小兒科診所 劉醫師  2026.07.26</script>
-<!-- index-CHA_v146：liou連線測試改由本機代理自動處理 CORS，支援 file:// 與 http://127.0.0.1:8765 開啟 -->
+<!-- index-CHA_v147：liou連線測試改由本機代理自動處理 CORS，支援 file:// 與 http://127.0.0.1:8765 開啟 -->
 
 <div id="disclaimerOverlay" class="save-confirm-overlay" hidden>
   <div class="save-confirm-dialog disclaimer-dialog" role="dialog" aria-modal="true" aria-labelledby="disclaimerTitle">
@@ -5842,6 +5842,37 @@ async function savePendingHealthUploadJson(data,pendingFileName){
   throw new Error("無法輸出 [未上傳] JSON 檔案");
 }
 
+
+async function rewriteSavedHealthUploadJson(saveContext,data){
+  if(!saveContext) return false;
+  const blob=healthUploadJsonBlob(data);
+  saveContext.blob=blob;
+
+  if(saveContext.mode==="file" && saveContext.fileHandle &&
+     typeof saveContext.fileHandle.createWritable==="function"){
+    let writable=null;
+    try{
+      writable=await saveContext.fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      writable=null;
+      const savedFile=await saveContext.fileHandle.getFile();
+      if(savedFile.size!==blob.size){
+        throw new Error(`JSON 更新不完整（預期 ${blob.size} bytes，實際 ${savedFile.size} bytes）`);
+      }
+      return true;
+    }catch(err){
+      if(writable){
+        try{await writable.abort();}catch(_err){}
+      }
+      throw err;
+    }
+  }
+
+  // 無 File System Access API 時，更新後內容由改名／下載流程另存。
+  return false;
+}
+
 async function markHealthUploadFileAsUploaded(saveContext,uploadedFileName){
   if(!saveContext) throw new Error("找不到待改名的上傳檔案");
 
@@ -6127,6 +6158,54 @@ function updateGrowthReferenceLine(){
   });
 }
 
+function setGrowthAttentionChecked(optionNames,checked){
+  const group=document.querySelector('[data-group-title="注意項目"]');
+  if(!group) return false;
+  const names=Array.isArray(optionNames) ? optionNames : [optionNames];
+  let changed=false;
+  group.querySelectorAll('input[type="checkbox"]').forEach(input=>{
+    if(!names.includes(String(input.value||""))) return;
+    const next=!!checked;
+    if(input.checked!==next){
+      input.checked=next;
+      changed=true;
+    }
+  });
+  return changed;
+}
+
+function updateGrowthAttentionAutomation(){
+  const group=document.querySelector('[data-group-title="注意項目"]');
+  if(!group) return;
+
+  const scale=getScaleByGender();
+  const ageMonths=growthAgeMonths();
+  const numericValue=field=>{
+    const input=document.querySelector(`[data-field="${field}"]`);
+    const value=Number(input?.value);
+    return input && input.value!=="" && Number.isFinite(value) ? value : null;
+  };
+  const abnormalByThreshold=(type,field,checkUpper)=>{
+    if(!scale || ageMonths===null) return false;
+    const value=numericValue(field);
+    const record=findAgeScaleRecord(scaleListByType(scale,type),ageMonths);
+    const lower=Number(record?.["3rd"]);
+    const upper=Number(record?.["97th"]);
+    if(value===null || !Number.isFinite(lower)) return false;
+    return value<=lower || (checkUpper && Number.isFinite(upper) && value>=upper);
+  };
+
+  let changed=false;
+  changed=setGrowthAttentionChecked(["身長","身高"],abnormalByThreshold("height","身長/身高",false)) || changed;
+  changed=setGrowthAttentionChecked("體重",abnormalByThreshold("weight","體重",true)) || changed;
+  changed=setGrowthAttentionChecked("頭圍",abnormalByThreshold("head","頭圍",true)) || changed;
+
+  const bmiCategory=String(document.querySelector('[data-bmi-status]')?.textContent || "").trim();
+  changed=setGrowthAttentionChecked("BMI",["過輕","過重","肥胖"].includes(bmiCategory)) || changed;
+
+  if(changed) updateAssessmentAutomation();
+}
+
 function updateGrowthPercentiles(){
   const scale=getScaleByGender();
   if(!scale || !currentAge){
@@ -6149,6 +6228,7 @@ function updateGrowthPercentiles(){
 
   updateBMI();
   updateGrowthReferenceLine();
+  updateGrowthAttentionAutomation();
 }
 
 function classifyBMI(value,record){
@@ -6342,14 +6422,14 @@ function applyApiSettings(settings){
   const apiKey=settings.apiKey ?? settings.APIKey ?? settings.API_KEY ?? DEFAULT_API_KEY;
   const account=settings.account ?? settings.Account ?? settings.username ?? "";
   const hospitalId=settings.HospitalID ?? settings.hospitalId ?? settings.hospitalID ?? "";
-  const linkedAccount=String(account || hospitalId || "");
+  const resolvedHospitalId=String(hospitalId || $("hospitalId")?.value || "");
   const password=settings.password ?? settings.Password ?? "";
   const password2=settings.password2 ?? settings.Password2 ?? settings.productionPassword ?? "";
   const thirdId=settings.ThirdID ?? settings.thirdId ?? settings.thirdID ?? "";
 
   if($("apiKeyInput")) $("apiKeyInput").value=String(apiKey);
-  if($("apiAccountInput")) $("apiAccountInput").value=linkedAccount;
-  if($("hospitalIdSettingInput")) $("hospitalIdSettingInput").value=linkedAccount;
+  if($("apiAccountInput")) $("apiAccountInput").value=String(account || "");
+  if($("hospitalIdSettingInput")) $("hospitalIdSettingInput").value=resolvedHospitalId;
   if($("thirdIdInput")) $("thirdIdInput").value=String(thirdId);
 
   apiPasswordValues={
@@ -6657,17 +6737,6 @@ function bindApiSettingsControls(){
     input.addEventListener("change",()=>{
       if(input.checked) switchApiEnvironment(input.value,{saveCurrent:true});
     });
-  });
-
-  $("apiAccountInput")?.addEventListener("input",()=>{
-    if(apiSettingsEditing && $("hospitalIdSettingInput")){
-      $("hospitalIdSettingInput").value=$("apiAccountInput").value;
-    }
-  });
-  $("hospitalIdSettingInput")?.addEventListener("input",()=>{
-    if(apiSettingsEditing && $("apiAccountInput")){
-      $("apiAccountInput").value=$("hospitalIdSettingInput").value;
-    }
   });
 
   setApiSettingsEditing(false);
@@ -7217,8 +7286,9 @@ async function testGetTokenIDConnection(){
     try{ parsedResponse=responseText ? JSON.parse(responseText) : null; }catch(_err){}
     const responseJson=extractApiResponseObject(parsedResponse ?? responseText);
     const msgInfo=apiResponseInfo(responseJson);
+    const msgCode=String(apiValue(responseJson,"MSG_CODE","")).trim().toUpperCase();
     const token=apiResponseToken(responseJson);
-    const loginSuccess=response.ok && msgInfo==="登入成功";
+    const loginSuccess=response.ok && msgCode==="Y" && msgInfo==="登入成功" && !!token;
 
     showConnectionTestResult([
       `環境：${environmentName}`,
@@ -7660,9 +7730,10 @@ function xlsxBasicDataFromRow(row){
     idNumber:String(row["身分證字號"]??"").toUpperCase(),
     gender:genderCode==="1"?"男":(genderCode==="2"?"女":""),
     birthDateRoc:String(row["生日"]??""),
+    contactPhone:String(row["連絡電話"]??row["電話"]??row["電話1"]??""),
     county:area ? displayCountyName(area["縣市別"]) : "台中市",
     district:area ? area["鄉鎮市區"] : "西屯區",
-    addressDetail:""
+    addressDetail:String(row["現居住地址"]??row["地址"]??"")
   };
 }
 
@@ -7748,7 +7819,7 @@ async function importXlsxFile(file){
     updateGrowthPercentiles();
     isRestoring=false;
     saveFullPageStateNow();
-    setStatus(`已讀取 ${file.name}。舊版 XLSX 已依批次欄位回復；電話、地址及特殊記載若未存於 XLSX，無法還原。`,false);
+    setStatus(`已讀取 ${file.name}。已依批次欄位回復；新版 XLSX 可回復電話與地址，特殊記載仍以隱藏回復資料為準。`,false);
   }));
 }
 
@@ -8469,7 +8540,21 @@ window.addEventListener("DOMContentLoaded",async()=>{
 </script>
 
 <script>
-const CHILD_XLS_TEMPLATES = {"71":{"headers":["服務項目","就醫日期","姓名","性別","身分證字號","是否依附健保卡ID","依附ID","胎序","生日","是否為早產兒","預產期日期","市縣代碼","身高","體重","頭圍","健康評估及建議處置","健康評估及建議處置-身體檢查","一般身體檢查題項","注意事項","chkQ101Kind","chkQ001","chkQ002","chkQ101","chkQ201","chkQ301","健保卡就醫序號"],"general":[["題目","選項"],["健康評估及建議處置","0=無明顯異常   1=需注意或異常項目"],["健康評估及建議處置-身體檢查","0=無  1=建議定期追蹤   2=建議轉介，進一步檢查"],["一般身體檢查題項","1=頭 2=皮膚 3=耳朵 4=口 5=咽 6=頸 7=胸 8=心音\n9=腹 10=四肢 11=外生殖器 12=神經肌肉發展 13=其他"],["注意事項","1=身長 2=體重 3=頭圍 4=動作 8=視力及眼位 9=聽力  11=其他"]],"parent":[["題號","題目內容"],["chkQ101Kind","餵食狀況 1=母乳 2=配方食品 "]],"education":[["題號","題目內容"],["chkQ001","無須加強衛教  0=否 1=是"],["chkQ002","已加強衛教指導項目 0=否 1=是"],["chkQ101","孩子哺餵 0=否 1=是"],["chkQ201","口腔清潔 0=否 1=是"],["chkQ301","預防事故傷害及嬰兒猝死 0=否 1=是"]]},"72":{"headers":["服務項目","就醫日期","姓名","性別","身分證字號","是否依附健保卡ID","依附ID","胎序","生日","是否為早產兒","預產期日期","市縣代碼","身高","體重","頭圍","健康評估及建議處置","健康評估及建議處置-身體檢查","一般身體檢查題項","注意事項","chkQ101Kind","chkQ001","chkQ002","chkQ101","chkQ201","chkQ301","chkQ401","健保卡就醫序號"],"general":[["題目","選項"],["健康評估及建議處置","0=無明顯異常   1=需注意或異常項目"],["健康評估及建議處置-身體檢查","0=無  1=建議定期追蹤   2=建議轉介，進一步檢查"],["一般身體檢查題項","1=頭 2=皮膚 3=耳朵 4=口 5=咽 6=頸 7=胸 8=心音\n9=腹 10=四肢 11=外生殖器 12=神經肌肉發展 13=其他"],["注意事項","1=身長 2=體重 3= 頭圍 4=動作 5=語言 6=認知 7=社會發展 \n8= 視力及眼位 9= 聽力  11=其他"]],"parent":[["題號","題目內容"],["chkQ101Kind","餵食狀況 1=母乳 2=配方食品"]],"education":[["題號","題目內容"],["chkQ001","無須加強衛教  0=否 1=是"],["chkQ002","已加強衛教指導項目 0=否 1=是"],["chkQ101","孩子哺餵 0=否 1=是"],["chkQ201","口腔清潔 0=否 1=是"],["chkQ301","預防事故傷害及嬰兒猝死 0=否 1=是"],["chkQ401"," 親子共讀 0=否 1=是"]]},"73":{"headers":["服務項目","就醫日期","姓名","性別","身分證字號","生日","是否依附健保卡ID","依附ID","市縣代碼","身高","體重","頭圍","健康評估及建議處置","健康評估及建議處置-身體檢查","身體檢查題項","注意事項","chkQ101Kind","chkQ001","chkQ002","chkQ101","chkQ201","chkQ301","健保卡就醫序號"],"general":[["題目","選項"],["健康評估及建議處置","0=無明顯異常   1=需注意或異常項目"],["健康評估及建議處置-身體檢查","0=無  1=建議定期追蹤   2=建議轉介，進一步檢查"],["一般身體檢查題項","1=頭 2=皮膚 3=耳朵 4=口 5=咽 6=頸 7=胸 8=心音\n9=腹 10=四肢 11=外生殖器 12=神經肌肉發展 13=其他"],["注意事項","1=身長 2=體重 3= 頭圍 4=動作 5=語言 6=認知 7=社會發展 \n8= 視力及眼位 9= 聽力 11=其他"]],"parent":[["題號","題目內容"],["chkQ101Kind","餵食狀況 1=母乳 2=配方食品 3=副食品"]],"education":[["題號","題目內容"],["chkQ001","無須加強衛教  0=否 1=是"],["chkQ002","已加強衛教指導項目 0=否 1=是"],["chkQ101","孩子哺餵 0=否 1=是"],["chkQ201","口腔清潔照護  0=否 1=是"],["chkQ301","預防事故傷害及嬰兒猝死 0=否 1=是"]]},"74":{"headers":["服務項目","就醫日期","姓名","性別","身分證字號","生日","是否為早產兒","預產期日期","市縣代碼","身高","體重","頭圍","健康評估及建議處置","健康評估及建議處置-身體檢查","一般身體檢查題項","注意事項","chkQ101Kind","chkQ001","chkQ002","chkQ101","chkQ201","chkQ301","健保卡就醫序號"],"general":[["題目","選項"],["健康評估及建議處置","0=無明顯異常   1=需注意或異常項目"],["健康評估及建議處置-身體檢查","0=無  1=建議定期追蹤   2=建議轉介，進一步檢查"],["一般身體檢查題項","1=頭 2=皮膚 3=耳朵 4=口 5=咽 6=頸 7=胸 8=心音\n9=腹 10=四肢 11=外生殖器 12=神經肌肉發展 13=其他"],["注意事項","1=身長 2=體重 3=頭圍 4=動作 5=語言 6=認知 7=社會發展\n8=視力及眼位 9=聽力 10=口腔 11=其他"]],"parent":[["題號","題目內容"],["chkQ101Kind","餵食狀況 1=母乳 2=配方食品 3=副食品"]],"education":[["題號","題目內容"],["chkQ001","無須加強衛教  0=否 1=是"],["chkQ002","已加強衛教指導項目 0=否 1=是"],["chkQ101","孩子哺餵  0=否 1=是"],["chkQ201","口腔與視力保健  0=否 1=是"],["chkQ301"," 預防事故傷害  0=否 1=是"]]},"75":{"headers":["服務項目","就醫日期","姓名","性別","身分證字號","生日","是否為早產兒","預產期日期","市縣代碼","身高","體重","頭圍","健康評估及建議處置","健康評估及建議處置-身體檢查","一般身體檢查題項","注意事項","chkQ101Kind","rblQ1","chkQ001","chkQ002","chkQ101","chkQ201","chkQ301","健保卡就醫序號"],"general":[["題目","選項"],["健康評估及建議處置","0=無明顯異常   1=需注意或異常項目"],["健康評估及建議處置-身體檢查","0=無  1=建議定期追蹤   2=建議轉介，進一步檢查"],["一般身體檢查題項","1=頭 2=皮膚 3=耳朵 4=口 5=咽 6=頸 7=胸 8=心音\n9=腹 10=四肢 11=外生殖器 12=神經肌肉發展 13=其他"],["注意事項","1=身長 2=體重 3= 頭圍 4=動作 5=語言 6=認知 7=社會發展 \n8= 視力及眼位 9= 聽力 10=口腔 11=其他"]],"parent":[["題號","題目內容"],["chkQ101Kind","餵食狀況 1=母乳 2=配方食品 4=正餐 5=其他奶製品"],["rblQ1","螢幕接觸狀況(是否已開始接觸螢幕 ) 0=否 1=是"]],"education":[["題號","題目內容"],["chkQ001","無須加強衛教  0=否 1=是"],["chkQ002","已加強衛教指導項目 0=否 1=是"],["chkQ101","孩子哺餵  0=否 1=是"],["chkQ201","口腔與視力保健  0=否 1=是"],["chkQ301"," 預防事故傷害  0=否 1=是"]]},"76":{"headers":["服務項目","就醫日期","姓名","性別","身分證字號","生日","是否為早產兒","預產期日期","市縣代碼","身高","體重","頭圍","健康評估及建議處置","健康評估及建議處置-身體檢查","一般身體檢查題項","注意事項","chkQ101Kind","rblQ1","chkQ001","chkQ002","chkQ101","chkQ201","chkQ301","健保卡就醫序號"],"general":[["題目","選項"],["健康評估及建議處置","0=無明顯異常   1=需注意或異常項目"],["健康評估及建議處置-身體檢查","0=無  1=建議定期追蹤   2=建議轉介，進一步檢查"],["一般身體檢查題項","1=頭 2=皮膚 3=耳朵 4=口 5=咽 6=頸 7=胸 8=心音\n9=腹 10=四肢 11=外生殖器 12=神經肌肉發展 13=其他"],["注意事項","1=身長 2=體重 3=頭圍 4=動作 5=語言 6=認知 7=社會發展\n8=視力及眼位 9=聽力 10=口腔 11=其他\n"]],"parent":[["題號","題目內容"],["chkQ101Kind","餵食狀況 1=母乳 2=配方食品 4=正餐 5=其他奶製品"],["rblQ1","螢幕接觸狀況(是否已開始接觸螢幕 0=否 1=是"]],"education":[["題號","題目內容"],["chkQ001","無須加強衛教  0=否 1=是"],["chkQ002","已加強衛教指導項目 0=否 1=是"],["chkQ101","孩子飲食 0=否 1=是"],["chkQ201","口腔與視力保健 0=否 1=是"],["chkQ301","預防事故傷害 0=否 1=是"]]},"77":{"headers":["服務項目","就醫日期","姓名","性別","身分證字號","生日","市縣代碼","身高","體重","頭圍","健康評估及建議處置","健康評估及建議處置-身體檢查","一般身體檢查題項","注意事項","rblQ2","chkQ001","chkQ002","chkQ101","chkQ201","chkQ301","健保卡就醫序號"],"general":[["題目","選項"],["健康評估及建議處置","0=無明顯異常   1=需注意或異常項目"],["健康評估及建議處置-身體檢查","0=無  1=建議定期追蹤   2=建議轉介，進一步檢查"],["一般身體檢查題項","1=頭 2=皮膚 3=耳朵 4=口 5=咽 6=頸 7=胸 8=心音\n9=腹 10=四肢 11=外生殖器 12=神經肌肉發展 13=其他"],["注意事項","1=身長 2=體重 3=頭圍 4=動作 5=語言 6=認知 7=社會發展\n8=視力及眼位 9=聽力 10=口腔 11=其他"]],"parent":[["題號","題目內容"],["rblQ2","螢幕接觸狀況(每日)  0=未接觸 1=小於30分鐘 2=30分鐘至1小時 3=超過1小時"]],"education":[["題號","題目內容"],["chkQ001","無須加強衛教  0=否 1=是"],["chkQ002","已加強衛教指導項目 0=否 1=是"],["chkQ101","孩子飲食  0=否 1=是"],["chkQ201","口腔與視力保健  0=否 1=是"],["chkQ301","預防事故傷害  0=否 1=是"]]},"78":{"headers":["服務項目","就醫日期","姓名","性別","身分證字號","生日","市縣代碼","身高","體重","健康評估及建議處置","健康評估及建議處置-身體檢查","一般身體檢查題項","注意事項","rblQ2","chkQ001","chkQ002","chkQ201","chkQ301","健保卡就醫序號"],"general":[["題目","選項"],["健康評估及建議處置","0=無明顯異常   1=需注意或異常項目"],["健康評估及建議處置-身體檢查","0=無  1=建議定期追蹤   2=建議轉介，進一步檢查"],["一般身體檢查題項","1=頭 2=皮膚 3=耳朵 4=口 5=咽 6=頸 7=胸 8=心音\n9=腹 10=四肢 11=外生殖器 12=神經肌肉發展 13=其他"],["注意事項","1=身長 2=體重 3=BMI 4=動作 5=語言 6=認知 7=社會發展\n8=視力及眼位 9=聽力 10=口腔 11=其他"]],"parent":[["題號","題目內容"],["rblQ2","螢幕接觸狀況(每日) 0=未接觸 1=小於30分鐘 2=30分鐘至1小時 3=超過1小時"]],"education":[["題號","題目內容"],["chkQ001","無須加強衛教  0=否 1=是"],["chkQ002","已加強衛教指導項目 0=否 1=是"],["chkQ201"," 口腔與視力保健 0=否 1=是"],["chkQ301","預防事故傷害 0=否 1=是"]]},"79":{"headers":["服務項目","就醫日期","姓名","性別","身分證字號","生日","市縣代碼","身高","體重","健康評估及建議處置","健康評估及建議處置-身體檢查","一般身體檢查題項","注意事項","rblQ2","chkQ001","chkQ002","chkQ201","chkQ301","健保卡就醫序號"],"general":[["題目","選項"],["健康評估及建議處置","0=無明顯異常   1=需注意或異常項目"],["健康評估及建議處置-生長評估","0=無  1=建議定期追蹤   2=建議轉介，進一步檢查"],["一般身體檢查題項","1=頭 2=皮膚 3=耳朵 4=口 5=咽 6=頸 7=胸 8=心音\n9=腹 10=四肢 11=外生殖器 12=神經肌肉發展 13=其他"],["注意事項","1=身長 2=體重 3=BMI 4=動作 5=語言 6=認知 7=社會發展\n8=視力及眼位 9=聽力 10=口腔 11=其他"]],"parent":[["題號","題目內容"],["rblQ2","螢幕接觸狀況(每日) 0=未接觸 1=小於30分鐘 2=30分鐘至1小時 3=超過1小時"]],"education":[["題號","題目內容"],["chkQ001","無須加強衛教  0=否 1=是"],["chkQ002","已加強衛教指導項目 0=否 1=是"],["chkQ201"," 口腔與視力保健 0=否 1=是"],["chkQ301","預防事故傷害 0=否 1=是"]]}};
+/* v150：注意項目依生長百分位／BMI自動勾選；XLS調整連絡電話與現居住地址欄位名稱及位置。 */
+/* v149：API上傳 JSON 改採 chmss-records-2026-07-27.json 陣列紀錄格式。 */
+/* v148：XLS 欄位「電話1」改名為「電話」，「現居住地址」改名為「地址」。 */
+const CHILD_XLS_TEMPLATES = {"71":{"headers":["服務項目","就醫日期","姓名","性別","身分證字號","是否依附健保卡ID","依附ID","胎序","生日","是否為早產兒","預產期日期","市縣代碼","電話","地址","身高","體重","頭圍","健康評估及建議處置","健康評估及建議處置-身體檢查","一般身體檢查題項","注意事項","chkQ101Kind","chkQ001","chkQ002","chkQ101","chkQ201","chkQ301","健保卡就醫序號"],"general":[["題目","選項"],["健康評估及建議處置","0=無明顯異常   1=需注意或異常項目"],["健康評估及建議處置-身體檢查","0=無  1=建議定期追蹤   2=建議轉介，進一步檢查"],["一般身體檢查題項","1=頭 2=皮膚 3=耳朵 4=口 5=咽 6=頸 7=胸 8=心音\n9=腹 10=四肢 11=外生殖器 12=神經肌肉發展 13=其他"],["注意事項","1=身長 2=體重 3=頭圍 4=動作 8=視力及眼位 9=聽力  11=其他"]],"parent":[["題號","題目內容"],["chkQ101Kind","餵食狀況 1=母乳 2=配方食品 "]],"education":[["題號","題目內容"],["chkQ001","無須加強衛教  0=否 1=是"],["chkQ002","已加強衛教指導項目 0=否 1=是"],["chkQ101","孩子哺餵 0=否 1=是"],["chkQ201","口腔清潔 0=否 1=是"],["chkQ301","預防事故傷害及嬰兒猝死 0=否 1=是"]]},"72":{"headers":["服務項目","就醫日期","姓名","性別","身分證字號","是否依附健保卡ID","依附ID","胎序","生日","是否為早產兒","預產期日期","市縣代碼","電話","地址","身高","體重","頭圍","健康評估及建議處置","健康評估及建議處置-身體檢查","一般身體檢查題項","注意事項","chkQ101Kind","chkQ001","chkQ002","chkQ101","chkQ201","chkQ301","chkQ401","健保卡就醫序號"],"general":[["題目","選項"],["健康評估及建議處置","0=無明顯異常   1=需注意或異常項目"],["健康評估及建議處置-身體檢查","0=無  1=建議定期追蹤   2=建議轉介，進一步檢查"],["一般身體檢查題項","1=頭 2=皮膚 3=耳朵 4=口 5=咽 6=頸 7=胸 8=心音\n9=腹 10=四肢 11=外生殖器 12=神經肌肉發展 13=其他"],["注意事項","1=身長 2=體重 3= 頭圍 4=動作 5=語言 6=認知 7=社會發展 \n8= 視力及眼位 9= 聽力  11=其他"]],"parent":[["題號","題目內容"],["chkQ101Kind","餵食狀況 1=母乳 2=配方食品"]],"education":[["題號","題目內容"],["chkQ001","無須加強衛教  0=否 1=是"],["chkQ002","已加強衛教指導項目 0=否 1=是"],["chkQ101","孩子哺餵 0=否 1=是"],["chkQ201","口腔清潔 0=否 1=是"],["chkQ301","預防事故傷害及嬰兒猝死 0=否 1=是"],["chkQ401"," 親子共讀 0=否 1=是"]]},"73":{"headers":["服務項目","就醫日期","姓名","性別","身分證字號","生日","是否依附健保卡ID","依附ID","市縣代碼","電話","地址","身高","體重","頭圍","健康評估及建議處置","健康評估及建議處置-身體檢查","身體檢查題項","注意事項","chkQ101Kind","chkQ001","chkQ002","chkQ101","chkQ201","chkQ301","健保卡就醫序號"],"general":[["題目","選項"],["健康評估及建議處置","0=無明顯異常   1=需注意或異常項目"],["健康評估及建議處置-身體檢查","0=無  1=建議定期追蹤   2=建議轉介，進一步檢查"],["一般身體檢查題項","1=頭 2=皮膚 3=耳朵 4=口 5=咽 6=頸 7=胸 8=心音\n9=腹 10=四肢 11=外生殖器 12=神經肌肉發展 13=其他"],["注意事項","1=身長 2=體重 3= 頭圍 4=動作 5=語言 6=認知 7=社會發展 \n8= 視力及眼位 9= 聽力 11=其他"]],"parent":[["題號","題目內容"],["chkQ101Kind","餵食狀況 1=母乳 2=配方食品 3=副食品"]],"education":[["題號","題目內容"],["chkQ001","無須加強衛教  0=否 1=是"],["chkQ002","已加強衛教指導項目 0=否 1=是"],["chkQ101","孩子哺餵 0=否 1=是"],["chkQ201","口腔清潔照護  0=否 1=是"],["chkQ301","預防事故傷害及嬰兒猝死 0=否 1=是"]]},"74":{"headers":["服務項目","就醫日期","姓名","性別","身分證字號","生日","是否為早產兒","預產期日期","市縣代碼","電話","地址","身高","體重","頭圍","健康評估及建議處置","健康評估及建議處置-身體檢查","一般身體檢查題項","注意事項","chkQ101Kind","chkQ001","chkQ002","chkQ101","chkQ201","chkQ301","健保卡就醫序號"],"general":[["題目","選項"],["健康評估及建議處置","0=無明顯異常   1=需注意或異常項目"],["健康評估及建議處置-身體檢查","0=無  1=建議定期追蹤   2=建議轉介，進一步檢查"],["一般身體檢查題項","1=頭 2=皮膚 3=耳朵 4=口 5=咽 6=頸 7=胸 8=心音\n9=腹 10=四肢 11=外生殖器 12=神經肌肉發展 13=其他"],["注意事項","1=身長 2=體重 3=頭圍 4=動作 5=語言 6=認知 7=社會發展\n8=視力及眼位 9=聽力 10=口腔 11=其他"]],"parent":[["題號","題目內容"],["chkQ101Kind","餵食狀況 1=母乳 2=配方食品 3=副食品"]],"education":[["題號","題目內容"],["chkQ001","無須加強衛教  0=否 1=是"],["chkQ002","已加強衛教指導項目 0=否 1=是"],["chkQ101","孩子哺餵  0=否 1=是"],["chkQ201","口腔與視力保健  0=否 1=是"],["chkQ301"," 預防事故傷害  0=否 1=是"]]},"75":{"headers":["服務項目","就醫日期","姓名","性別","身分證字號","生日","是否為早產兒","預產期日期","市縣代碼","電話","地址","身高","體重","頭圍","健康評估及建議處置","健康評估及建議處置-身體檢查","一般身體檢查題項","注意事項","chkQ101Kind","rblQ1","chkQ001","chkQ002","chkQ101","chkQ201","chkQ301","健保卡就醫序號"],"general":[["題目","選項"],["健康評估及建議處置","0=無明顯異常   1=需注意或異常項目"],["健康評估及建議處置-身體檢查","0=無  1=建議定期追蹤   2=建議轉介，進一步檢查"],["一般身體檢查題項","1=頭 2=皮膚 3=耳朵 4=口 5=咽 6=頸 7=胸 8=心音\n9=腹 10=四肢 11=外生殖器 12=神經肌肉發展 13=其他"],["注意事項","1=身長 2=體重 3= 頭圍 4=動作 5=語言 6=認知 7=社會發展 \n8= 視力及眼位 9= 聽力 10=口腔 11=其他"]],"parent":[["題號","題目內容"],["chkQ101Kind","餵食狀況 1=母乳 2=配方食品 4=正餐 5=其他奶製品"],["rblQ1","螢幕接觸狀況(是否已開始接觸螢幕 ) 0=否 1=是"]],"education":[["題號","題目內容"],["chkQ001","無須加強衛教  0=否 1=是"],["chkQ002","已加強衛教指導項目 0=否 1=是"],["chkQ101","孩子哺餵  0=否 1=是"],["chkQ201","口腔與視力保健  0=否 1=是"],["chkQ301"," 預防事故傷害  0=否 1=是"]]},"76":{"headers":["服務項目","就醫日期","姓名","性別","身分證字號","生日","是否為早產兒","預產期日期","市縣代碼","電話","地址","身高","體重","頭圍","健康評估及建議處置","健康評估及建議處置-身體檢查","一般身體檢查題項","注意事項","chkQ101Kind","rblQ1","chkQ001","chkQ002","chkQ101","chkQ201","chkQ301","健保卡就醫序號"],"general":[["題目","選項"],["健康評估及建議處置","0=無明顯異常   1=需注意或異常項目"],["健康評估及建議處置-身體檢查","0=無  1=建議定期追蹤   2=建議轉介，進一步檢查"],["一般身體檢查題項","1=頭 2=皮膚 3=耳朵 4=口 5=咽 6=頸 7=胸 8=心音\n9=腹 10=四肢 11=外生殖器 12=神經肌肉發展 13=其他"],["注意事項","1=身長 2=體重 3=頭圍 4=動作 5=語言 6=認知 7=社會發展\n8=視力及眼位 9=聽力 10=口腔 11=其他\n"]],"parent":[["題號","題目內容"],["chkQ101Kind","餵食狀況 1=母乳 2=配方食品 4=正餐 5=其他奶製品"],["rblQ1","螢幕接觸狀況(是否已開始接觸螢幕 0=否 1=是"]],"education":[["題號","題目內容"],["chkQ001","無須加強衛教  0=否 1=是"],["chkQ002","已加強衛教指導項目 0=否 1=是"],["chkQ101","孩子飲食 0=否 1=是"],["chkQ201","口腔與視力保健 0=否 1=是"],["chkQ301","預防事故傷害 0=否 1=是"]]},"77":{"headers":["服務項目","就醫日期","姓名","性別","身分證字號","生日","市縣代碼","電話","地址","身高","體重","頭圍","健康評估及建議處置","健康評估及建議處置-身體檢查","一般身體檢查題項","注意事項","rblQ2","chkQ001","chkQ002","chkQ101","chkQ201","chkQ301","健保卡就醫序號"],"general":[["題目","選項"],["健康評估及建議處置","0=無明顯異常   1=需注意或異常項目"],["健康評估及建議處置-身體檢查","0=無  1=建議定期追蹤   2=建議轉介，進一步檢查"],["一般身體檢查題項","1=頭 2=皮膚 3=耳朵 4=口 5=咽 6=頸 7=胸 8=心音\n9=腹 10=四肢 11=外生殖器 12=神經肌肉發展 13=其他"],["注意事項","1=身長 2=體重 3=頭圍 4=動作 5=語言 6=認知 7=社會發展\n8=視力及眼位 9=聽力 10=口腔 11=其他"]],"parent":[["題號","題目內容"],["rblQ2","螢幕接觸狀況(每日)  0=未接觸 1=小於30分鐘 2=30分鐘至1小時 3=超過1小時"]],"education":[["題號","題目內容"],["chkQ001","無須加強衛教  0=否 1=是"],["chkQ002","已加強衛教指導項目 0=否 1=是"],["chkQ101","孩子飲食  0=否 1=是"],["chkQ201","口腔與視力保健  0=否 1=是"],["chkQ301","預防事故傷害  0=否 1=是"]]},"78":{"headers":["服務項目","就醫日期","姓名","性別","身分證字號","生日","市縣代碼","電話","地址","身高","體重","健康評估及建議處置","健康評估及建議處置-身體檢查","一般身體檢查題項","注意事項","rblQ2","chkQ001","chkQ002","chkQ201","chkQ301","健保卡就醫序號"],"general":[["題目","選項"],["健康評估及建議處置","0=無明顯異常   1=需注意或異常項目"],["健康評估及建議處置-身體檢查","0=無  1=建議定期追蹤   2=建議轉介，進一步檢查"],["一般身體檢查題項","1=頭 2=皮膚 3=耳朵 4=口 5=咽 6=頸 7=胸 8=心音\n9=腹 10=四肢 11=外生殖器 12=神經肌肉發展 13=其他"],["注意事項","1=身長 2=體重 3=BMI 4=動作 5=語言 6=認知 7=社會發展\n8=視力及眼位 9=聽力 10=口腔 11=其他"]],"parent":[["題號","題目內容"],["rblQ2","螢幕接觸狀況(每日) 0=未接觸 1=小於30分鐘 2=30分鐘至1小時 3=超過1小時"]],"education":[["題號","題目內容"],["chkQ001","無須加強衛教  0=否 1=是"],["chkQ002","已加強衛教指導項目 0=否 1=是"],["chkQ201"," 口腔與視力保健 0=否 1=是"],["chkQ301","預防事故傷害 0=否 1=是"]]},"79":{"headers":["服務項目","就醫日期","姓名","性別","身分證字號","生日","市縣代碼","電話","地址","身高","體重","健康評估及建議處置","健康評估及建議處置-身體檢查","一般身體檢查題項","注意事項","rblQ2","chkQ001","chkQ002","chkQ201","chkQ301","健保卡就醫序號"],"general":[["題目","選項"],["健康評估及建議處置","0=無明顯異常   1=需注意或異常項目"],["健康評估及建議處置-生長評估","0=無  1=建議定期追蹤   2=建議轉介，進一步檢查"],["一般身體檢查題項","1=頭 2=皮膚 3=耳朵 4=口 5=咽 6=頸 7=胸 8=心音\n9=腹 10=四肢 11=外生殖器 12=神經肌肉發展 13=其他"],["注意事項","1=身長 2=體重 3=BMI 4=動作 5=語言 6=認知 7=社會發展\n8=視力及眼位 9=聽力 10=口腔 11=其他"]],"parent":[["題號","題目內容"],["rblQ2","螢幕接觸狀況(每日) 0=未接觸 1=小於30分鐘 2=30分鐘至1小時 3=超過1小時"]],"education":[["題號","題目內容"],["chkQ001","無須加強衛教  0=否 1=是"],["chkQ002","已加強衛教指導項目 0=否 1=是"],["chkQ201"," 口腔與視力保健 0=否 1=是"],["chkQ301","預防事故傷害 0=否 1=是"]]}};
+
+// v150：所有時程的 XLS 欄位統一為「生日→連絡電話」及「市縣代碼→現居住地址」。
+Object.values(CHILD_XLS_TEMPLATES).forEach(template=>{
+  if(!template || !Array.isArray(template.headers)) return;
+  const headers=template.headers.filter(header=>!["電話1","電話","連絡電話","地址","現居住地址"].includes(header));
+  const birthIndex=headers.indexOf("生日");
+  if(birthIndex>=0) headers.splice(birthIndex+1,0,"連絡電話");
+  const countyIndex=headers.indexOf("市縣代碼");
+  if(countyIndex>=0) headers.splice(countyIndex+1,0,"現居住地址");
+  template.headers=headers;
+});
 
 function xmlEscape(value){
   return String(value ?? "")
@@ -8900,9 +8985,9 @@ function buildHealthAgencyApiRecord(){
     phone1:$("phone").value.trim(),
     phone2:"",
     city:currentCountyCode(),
-    address:addressData.fullAddress,
+    address:addressData.detail,
     icCode:`IC${code}`,
-    hospitalID:($("hospitalIdSettingInput")?.value || $("hospitalId")?.value || "").trim(),
+    hospitalID:($("hospitalId")?.value || $("hospitalIdSettingInput")?.value || "").trim(),
     assessID:"",
     healthResult:Number(healthAssessmentCode()),
     bodyResult:Number(bodyDispositionCode()),
@@ -9076,46 +9161,98 @@ function loadLastSavedHealthApiRecord(){
   }
 }
 
-function buildUploadHealthCarePayload(record,tokenid){
+function buildChmssFormData(record){
   const familyQuestionIds=["chkQ101Kind","rblQ1","rblQ2"];
   const healthQuestionIds=["chkQ001","chkQ002","chkQ101","chkQ201","chkQ301","chkQ401"];
   const makeRecords=ids=>ids
     .filter(questionId=>Object.prototype.hasOwnProperty.call(record,questionId))
     .map(questionId=>({questionId,answer:String(record[questionId] ?? "")}));
 
+  // 欄位與 chmss-records-2026-07-27.json 的 formData 結構一致。
   return {
-    tokenid:String(tokenid || ""),
     funcDate:String(record.funcDate || ""),
+    hospitalID:String(record.hospitalID || ""),
+    icCode:String(record.icCode || ""),
+    name:String(record.name || ""),
     birthday:String(record.birthday || ""),
     personalID:String(record.personalID || ""),
-    name:String(record.name || ""),
     sex:Number(record.sex),
     phone1:String(record.phone1 || ""),
     phone2:String(record.phone2 || ""),
     city:String(record.city || ""),
     address:String(record.address || ""),
-    icCode:String(record.icCode || ""),
-    hospitalID:String(record.hospitalID || ""),
-    assessID:String(record.assessID || ""),
+    assessID:null,
     healthResult:Number(record.healthResult),
     bodyResult:Number(record.bodyResult),
     bodyGeneralReason:String(record.bodyGeneralReason || ""),
     bodyNotes:String(record.bodyNotes || ""),
-    height:String(record.height || ""),
-    weight:String(record.weight || ""),
-    head:String(record.head || ""),
-    thirdId:String(record.thirdId || ""),
+    height:String(record.height ?? ""),
+    weight:String(record.weight ?? ""),
+    head:String(record.head ?? ""),
+    heightPercent:null,
+    weightPercent:null,
+    headPercent:null,
     isDepend:Number(record.isDepend || 0),
     dependID:String(record.dependID || ""),
     isPremature:Number(record.isPremature || 0),
     prematureDate:String(record.prematureDate || ""),
-    tiSu:(record.tiSu===null || record.tiSu===undefined || record.tiSu==="") ? 1 : Number(record.tiSu),
-    heightPercent:"",
-    weightPercent:"",
-    headPercent:"",
-    importID:0,
+    thirdId:String(record.thirdId || ""),
+    tiSu:null,
+    importID:null,
     familyRecords:makeRecords(familyQuestionIds),
     healthRecords:makeRecords(healthQuestionIds)
+  };
+}
+
+async function sha256Hex(text){
+  const value=String(text ?? "");
+  if(globalThis.crypto?.subtle){
+    const data=new TextEncoder().encode(value);
+    const digest=await globalThis.crypto.subtle.digest("SHA-256",data);
+    return [...new Uint8Array(digest)].map(byte=>byte.toString(16).padStart(2,"0")).join("");
+  }
+
+  // 舊瀏覽器後備：產生固定 64 字元識別碼，不影響 API 上傳。
+  let hash1=2166136261;
+  let hash2=0x9e3779b9;
+  for(let i=0;i<value.length;i++){
+    const code=value.charCodeAt(i);
+    hash1=Math.imul(hash1 ^ code,16777619) >>> 0;
+    hash2=Math.imul(hash2 ^ code,2246822519) >>> 0;
+  }
+  const seed=(hash1.toString(16).padStart(8,"0")+hash2.toString(16).padStart(8,"0"));
+  return seed.repeat(4).slice(0,64);
+}
+
+async function buildChmssArchiveEntry(record,{status="pending",lastApiResult=null,createdAt=null,updatedAt=null}={}){
+  const formData=buildChmssFormData(record);
+  const identity={
+    icCode:String(formData.icCode || ""),
+    personalId:String(formData.personalID || ""),
+    name:String(formData.name || ""),
+    formData
+  };
+  const now=Date.now();
+  return {
+    hash:await sha256Hex(JSON.stringify(identity)),
+    icCode:identity.icCode,
+    personalId:identity.personalId,
+    name:identity.name,
+    formData,
+    status:String(status || "pending"),
+    lastApiResult:lastApiResult && typeof lastApiResult==="object" ? {
+      MSG_CODE:String(lastApiResult.MSG_CODE ?? ""),
+      MSG_INFO:String(lastApiResult.MSG_INFO ?? "")
+    } : null,
+    createdAt:Number.isFinite(Number(createdAt)) ? Number(createdAt) : now,
+    updatedAt:Number.isFinite(Number(updatedAt)) ? Number(updatedAt) : now
+  };
+}
+
+function buildUploadHealthCarePayload(record,tokenid){
+  return {
+    tokenid:String(tokenid || ""),
+    ...buildChmssFormData(record)
   };
 }
 
@@ -9137,8 +9274,9 @@ async function requestFreshTokenForUpload(settings,health){
   try{parsed=responseText ? JSON.parse(responseText) : null}catch(_err){}
   const responseJson=extractApiResponseObject(parsed ?? responseText);
   const msgInfo=apiResponseInfo(responseJson);
+  const msgCode=String(apiValue(responseJson,"MSG_CODE","")).trim().toUpperCase();
   const token=apiResponseToken(responseJson);
-  if(!response.ok || msgInfo!=="登入成功" || !token){
+  if(!response.ok || msgCode!=="Y" || msgInfo!=="登入成功" || !token){
     throw new Error(msgInfo || `GetTokenID HTTP ${response.status}`);
   }
   try{sessionStorage.setItem("CHMSS_TOKENID",token)}catch(_err){}
@@ -9338,9 +9476,17 @@ async function uploadLastSavedHealthCare(){
   button.disabled=true;
   button.textContent="建立上傳檔...";
 
+  const archiveCreatedAt=Date.now();
+  let archiveEntry=await buildChmssArchiveEntry(record,{
+    status:"pending",
+    lastApiResult:null,
+    createdAt:archiveCreatedAt,
+    updatedAt:archiveCreatedAt
+  });
+
   let saveContext=null;
   try{
-    saveContext=await savePendingHealthUploadJson(record,pendingFileName);
+    saveContext=await savePendingHealthUploadJson([archiveEntry],pendingFileName);
   }catch(err){
     const reason=err?.message || String(err);
     button.disabled=false;
@@ -9388,9 +9534,21 @@ async function uploadLastSavedHealthCare(){
     try{parsed=responseText ? JSON.parse(responseText) : null}catch(_err){}
     const responseJson=extractApiResponseObject(parsed ?? responseText);
     const msgInfo=apiResponseInfo(responseJson);
+    const msgCode=String(apiValue(responseJson,"MSG_CODE","")).trim().toUpperCase();
     const successMessages=new Set(["修改成功","上傳新增成功","上傳成功","新增成功"]);
-    // 依國健署回傳的 MSG_INFO（大小寫不拘）判定是否成功。
-    const uploadSuccess=successMessages.has(msgInfo);
+    // 正式成功必須同時符合 HTTP 2xx、MSG_CODE=Y 與國健署成功訊息，避免只因 HTTP 200 誤判。
+    const uploadSuccess=response.ok && msgCode==="Y" && successMessages.has(msgInfo);
+    archiveEntry={
+      ...archiveEntry,
+      status:uploadSuccess ? "success" : "failed",
+      lastApiResult:{MSG_CODE:msgCode,MSG_INFO:msgInfo},
+      updatedAt:Date.now()
+    };
+    try{
+      await rewriteSavedHealthUploadJson(saveContext,[archiveEntry]);
+    }catch(err){
+      console.error("更新 CHMSS 上傳紀錄 JSON 失敗",err);
+    }
 
     if(uploadSuccess){
       let renameResult=null;
@@ -9428,6 +9586,11 @@ async function uploadLastSavedHealthCare(){
         `國健署 API：${upstreamEndpoint}`,
         `本機代理：${proxyEndpoint}`,
         `HTTP：${response.status} ${response.statusText || ""}`.trim(),
+        `MSG_CODE：${msgCode || "(空白)"}`,
+        `實際 Hospital ID：${uploadPayload.hospitalID || "(空白)"}`,
+        `實際 Personal ID：${uploadPayload.personalID || "(空白)"}`,
+        `實際就醫日期：${uploadPayload.funcDate || "(空白)"}`,
+        `實際健保卡序號：${uploadPayload.icCode || "(空白)"}`,
         `檔案處理：${renameDetail}`,
         "",
         formatApiResponseBody(responseText)
@@ -9444,6 +9607,11 @@ async function uploadLastSavedHealthCare(){
         `國健署 API：${upstreamEndpoint}`,
         `本機代理：${proxyEndpoint}`,
         `HTTP：${response.status} ${response.statusText || ""}`.trim(),
+        `MSG_CODE：${msgCode || "(空白)"}`,
+        `實際 Hospital ID：${uploadPayload.hospitalID || "(空白)"}`,
+        `實際 Personal ID：${uploadPayload.personalID || "(空白)"}`,
+        `實際就醫日期：${uploadPayload.funcDate || "(空白)"}`,
+        `實際健保卡序號：${uploadPayload.icCode || "(空白)"}`,
         "",
         formatApiResponseBody(responseText)
       ].join("\n"),"UploadHealthCare 回傳內容","error");
@@ -9451,6 +9619,17 @@ async function uploadLastSavedHealthCare(){
     }
   }catch(err){
     const reason=err?.name==="AbortError" ? "上傳等待逾時" : (err?.message || String(err));
+    archiveEntry={
+      ...archiveEntry,
+      status:"failed",
+      lastApiResult:{MSG_CODE:"N",MSG_INFO:reason},
+      updatedAt:Date.now()
+    };
+    try{
+      await rewriteSavedHealthUploadJson(saveContext,[archiveEntry]);
+    }catch(updateErr){
+      console.error("更新失敗狀態 JSON 失敗",updateErr);
+    }
     showConnectionTestResult([
       `環境：${environmentName}`,
       `上傳檔案：${pendingFileName}`,
@@ -9458,7 +9637,7 @@ async function uploadLastSavedHealthCare(){
       "結果：上傳失敗",
       `錯誤：${reason}`,
       "",
-      "請確認 ChildHealthProxy_v6.py 已啟動，且支援 /proxy/upload-healthcare。"
+      "請確認 ChildHealthProxy_v10.py 已啟動，且支援 /proxy/upload-healthcare；並核對回傳的 MSG_CODE、Hospital ID 與上傳欄位。"
     ].join("\n"),"UploadHealthCare 回傳內容","error");
     setApiResponseStatus("上傳失敗",false);
   }finally{
@@ -9496,7 +9675,8 @@ async function exportHealthAgencyApiJson(){
   const childName=safeFileName(rawChildName);
   const idNo=safeFileName(rawIdNo);
   const fileName=`[未上傳]${dateText}-${childName}${idNo}-${code}.json`;
-  const saved=await saveJsonWithPicker(record,fileName,SHARED_SAVE_PICKER_ID);
+  const archiveEntry=await buildChmssArchiveEntry(record,{status:"pending",lastApiResult:null});
+  const saved=await saveJsonWithPicker([archiveEntry],fileName,SHARED_SAVE_PICKER_ID);
   if(saved){
     setStatus(`已依國健署電子檔申報格式輸出 ${fileName}`,false);
   }
@@ -9533,6 +9713,8 @@ function buildUploadRow(code,headers){
     "是否為早產兒":"",
     "預產期日期":"",
     "市縣代碼":currentCountyCode(),
+    "連絡電話":$("phone").value.trim(),
+    "現居住地址":getAddressData().detail,
     "身高":getMeasurementValue("身長/身高"),
     "體重":getMeasurementValue("體重"),
     "頭圍":getMeasurementValue("頭圍"),
