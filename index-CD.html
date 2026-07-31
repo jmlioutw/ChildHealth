@@ -1673,7 +1673,8 @@ body.assessment-focus-mode .assessment-fullscreen-btn{
   border-color:#1c7a55 !important;
   color:#fff !important
 }
-#settingsBtn,#apiUploadBtn{display:block}
+/* v16：僅於本機代理服務已連線時顯示 API 連線設定與 API 上傳存檔 */
+#settingsBtn[hidden],#apiUploadBtn[hidden]{display:none !important}
 
 </style>
 </head>
@@ -1765,10 +1766,10 @@ body.assessment-focus-mode .assessment-fullscreen-btn{
           <div class="secondary-actions-title">兒童發展評量結果上傳</div>
           <div id="proxyServiceStatus" class="proxy-service-status status-checking" aria-live="polite">本機代理服務：檢查中…</div>
           <div class="secondary-actions-grid">
-            <button class="btn-tool" id="settingsBtn" type="button">API連線設定</button>
+            <button class="btn-tool" id="settingsBtn" type="button" hidden>API連線設定</button>
             <button class="btn-tool" id="queryBtn" type="button">上傳查詢</button>
             <button class="btn-tool" id="exportXlsBtn" type="button">輸出XLS</button>
-            <button class="btn-tool" id="apiUploadBtn" type="button">API上傳</button>
+            <button class="btn-tool" id="apiUploadBtn" type="button" hidden>API上傳存檔</button>
           </div>
           <div id="connectionTestResult" class="connection-result" hidden>
             <div class="connection-result-title">
@@ -7473,9 +7474,9 @@ function updateProxyDependentControls(isOnline){
   const uploadButton=$("apiUploadBtn");
   const actionGrid=document.querySelector(".secondary-actions-grid");
 
-  // v10：API 按鍵固定顯示。代理未連線時仍可先開啟設定；實際呼叫 API 時再提示啟動代理。
-  if(settingsButton) settingsButton.hidden=false;
-  if(uploadButton) uploadButton.hidden=false;
+  // v16：本機代理確認已連線後才顯示 API 功能；檢查中或未連線時隱藏。
+  if(settingsButton) settingsButton.hidden=!online;
+  if(uploadButton) uploadButton.hidden=!online;
   if(actionGrid) actionGrid.classList.toggle("proxy-offline",!online);
 }
 
