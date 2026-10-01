@@ -1,9 +1,18 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
+<!-- index-CHA_v161：交換「路徑設定」與「HIS更新」位置；啟動先恢復已記住 PathHTML，再檢查 PathHTML\MyCHPathSET.json，存在時不再開啟路徑設定 -->
+<!-- index-CHA_v160：MyCHPathSET/HIS廠商與磁碟設定、PATDB/TEMP完整生日三欄與索引、候診清單全顯示、查詢版面/日期邏輯、成長異常自動衛教 -->
+<!-- index-CHA_v162：劉氏候診同步與候診清單「卡號」統一只顯示 INSNO 前4碼；耀聖維持顯示 CARD -->
+<!-- index-CHA_v163：成功儲存 MyCHPathSET.json 後記錄「路徑設定已完成」；後續啟動直接使用已保存設定，不再因瀏覽器暫時無法讀取實體 JSON 而自動開啟路徑設定 -->
+<!-- index-CHA_v157：現居地址縣市欄寬與鄉鎮市區相同；PATDB 查詢新增聯絡電話 -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>兒童健檢紀錄 兒科分享版</title>
+<!-- index-CHA_v154：路徑選擇不再猜測完整路徑；Chrome/Edge 無法回傳完整 Windows 路徑時要求使用者確認，並驗證末層資料夾名稱 -->
+<!-- index-CHA_v158：讀取支援 API上傳 CHMSS 陣列/formData 存檔；新 API 存檔加入 restoreData 供完整回復 -->
+<!-- index-CHA_v159：MyAPISET.json 改為 MyCHAPISET.json；API連線設定新增依測試機／正式機切換的 API 網址並一併儲存 -->
+<!-- index-CHA_v156：更新→候診同步、HIS同步→HIS更新並交換按鍵位置；TEMP.DB 支援 INSNO IC71~IC79 以 GP第二碼+BIRTH（6位補1），CARD IC71~IC79 以 BIRTH2 帶入 -->
 <!-- index-CHA_v110：liou連線測試改由本機代理自動處理 CORS，支援 file:// 與 http://127.0.0.1:8765 開啟 -->
 <style>
 :root{
@@ -869,6 +878,7 @@ button:disabled{
 }
 
 
+/* v155：路徑設定取消「選擇目錄」按鍵；PathHTML/PathAPI 預設為 HTML 所在目錄 */
 /* v82：MyPathSET.json 網頁路徑設定表單 */
 .path-settings-dialog{width:min(760px,96vw)}
 .path-settings-help{
@@ -889,8 +899,8 @@ button:disabled{
 }
 .path-settings-input-row{
   display:grid;
-  grid-template-columns:minmax(0,1fr) auto;
-  gap:8px;
+  grid-template-columns:minmax(0,1fr);
+  gap:0;
   align-items:center
 }
 .path-settings-input-row .path-browse-btn{
@@ -942,7 +952,7 @@ button:disabled{
 .path-settings-actions button{min-width:112px}
 @media(max-width:680px){
   .path-settings-grid{grid-template-columns:1fr;gap:6px}
-  .path-settings-input-row{grid-template-columns:1fr auto;margin-bottom:8px}
+  .path-settings-input-row{grid-template-columns:1fr;margin-bottom:8px}
   .path-settings-grid input{margin-bottom:0}
   .path-settings-actions,.disclaimer-actions{display:grid;grid-template-columns:1fr}
 }
@@ -1218,7 +1228,7 @@ main{
 }
 .address-grid{
   width:100%;
-  grid-template-columns:minmax(82px,.75fr) minmax(94px,.9fr) minmax(130px,2.2fr)
+  grid-template-columns:minmax(94px,.9fr) minmax(94px,.9fr) minmax(130px,2.2fr)
 }
 #countySelect,#districtSelect{
   width:100%;
@@ -1235,7 +1245,7 @@ main{
   .form-grid{grid-template-columns:clamp(118px,12vw,155px) minmax(0,1fr);gap:10px}
   .child-name-action-row{gap:6px}
   .child-name-action-btn{font-size:15px;padding:9px 8px}
-  .address-grid{gap:6px;grid-template-columns:minmax(76px,.7fr) minmax(86px,.8fr) minmax(115px,2fr)}
+  .address-grid{gap:6px;grid-template-columns:minmax(86px,.8fr) minmax(86px,.8fr) minmax(115px,2fr)}
 }
 
 @media(max-width:760px){
@@ -1420,6 +1430,36 @@ main{
   text-align:center
 }
 
+
+/* v160 UI overrides */
+#countySelect,#districtSelect{width:5.95em !important;min-width:5.95em !important}
+@media(max-width:760px){#countySelect,#districtSelect{width:100% !important;min-width:0 !important}}
+.patdb-query-grid{grid-template-columns:120px minmax(0,1fr) 120px minmax(0,1fr);gap:11px 14px}
+.patdb-query-help{margin-left:0}
+.patdb-results-table th:nth-child(1),.patdb-results-table td:nth-child(1){width:24%}
+.patdb-results-table th:nth-child(2),.patdb-results-table td:nth-child(2){width:20%}
+.patdb-results-table th:nth-child(3),.patdb-results-table td:nth-child(3){width:30%}
+.patdb-results-table th:nth-child(4),.patdb-results-table td:nth-child(4){width:26%}
+.waiting-list-table th:nth-child(1),.waiting-list-table td:nth-child(1){width:24%}
+.waiting-list-table th:nth-child(2),.waiting-list-table td:nth-child(2){width:28%}
+.waiting-list-table th:nth-child(3),.waiting-list-table td:nth-child(3){width:20%}
+.waiting-list-table th:nth-child(4),.waiting-list-table td:nth-child(4){width:28%}
+.waiting-list-table tbody tr{background:#eef5fb;cursor:pointer}
+.waiting-list-table tbody tr:hover{filter:brightness(.98)}
+.waiting-list-table tbody tr.health-card{background:#fdecec}
+.waiting-list-table tbody tr.health-card:hover{background:#f9dddd}
+.temp-results-scroll{overflow-x:hidden !important;border-radius:10px !important}
+.temp-results-table{min-width:0 !important;width:100% !important}
+.temp-horizontal-controls{display:none !important}
+.path-settings-grid select{width:100%;box-sizing:border-box;border:1px solid #b8cad8;border-radius:8px;padding:10px 12px;font-size:16px;background:#fff;color:var(--text)}
+@media(max-width:680px){.patdb-query-grid{grid-template-columns:1fr}.patdb-query-grid label{text-align:left;margin-top:6px}}
+
+.waiting-list-table tbody tr.deleted-record:not(.health-card){background:#eef5fb !important}
+
+.temp-results-table th:nth-child(1),.temp-results-table td:nth-child(1){width:24% !important}
+.temp-results-table th:nth-child(2),.temp-results-table td:nth-child(2){width:20% !important}
+.temp-results-table th:nth-child(3),.temp-results-table td:nth-child(3){width:28% !important}
+.temp-results-table th:nth-child(4),.temp-results-table td:nth-child(4){width:28% !important}
 </style>
 </head>
 <body>
@@ -1434,9 +1474,9 @@ main{
       <div class="card-title card-title-with-actions">
         <span>兒童基本資料</span>
         <div class="basic-title-actions">
-          <button id="waitingListBtn" class="btn-tool" type="button" hidden>候診清單</button>
+          <button id="waitingListBtn" class="btn-tool" type="button">候診清單</button>
+          <button id="childUpdateBtn" class="btn-tool" type="button">候診同步</button>
           <button id="webSettingsBtn" class="btn-tool" type="button">路徑設定</button>
-          <button id="hisSyncBtn" class="btn-tool" type="button">HIS同步</button>
           <button id="reservedBtn" class="btn-tool" type="button">說明</button>
         </div>
       </div>
@@ -1449,7 +1489,7 @@ main{
           <div class="child-name-action-row">
             <input id="childName" type="text">
             <button id="childQueryBtn" class="btn-tool child-name-action-btn" type="button">查詢</button>
-            <button id="childUpdateBtn" class="btn-tool child-name-action-btn" type="button">更新</button>
+            <button id="hisSyncBtn" class="btn-tool child-name-action-btn" type="button">HIS更新</button>
           </div>
 
           <label for="idNo">3. 身分證字號</label>
@@ -1524,7 +1564,7 @@ main{
               <button id="apiSettingsImportBtn" class="btn-secondary" type="button">匯入設定</button>
               <button id="apiSettingsEditBtn" class="btn-secondary" type="button">變更設定</button>
               <button id="connectionTestBtn" class="btn-test" type="button">測試連線</button>
-              <span id="apiSettingsLoadStatus" class="api-settings-load-status">尚未讀取 MyAPISET.json</span>
+              <span id="apiSettingsLoadStatus" class="api-settings-load-status">尚未讀取 MyCHAPISET.json</span>
             </div>
             <input id="apiSettingsFileInput" type="file" accept=".json,application/json" hidden>
 
@@ -1544,7 +1584,11 @@ main{
             <div class="settings-section">
               <div class="settings-heading">API設定欄位</div>
 
-              <label class="settings-label" for="apiAccountInput">帳號</label>
+              <label class="settings-label" for="apiUrlInput">API 網址</label>
+              <input id="apiUrlInput" type="text" value="https://60.251.1.235/MedicalRecord_HPA/api/CHMSSForHis/" readonly autocomplete="off" spellcheck="false">
+              <div class="settings-help">測試機：https://60.251.1.235/MedicalRecord_HPA/api/CHMSSForHis/　正式機：https://203.65.42.199/MedicalRecord_HPA/api/CHMSSForHis/</div>
+
+              <label class="settings-label" for="apiAccountInput" style="margin-top:18px">帳號</label>
               <input id="apiAccountInput" type="text" value="" readonly autocomplete="off">
 
               <label class="settings-label" for="apiPasswordInput" style="margin-top:18px">目前環境密碼</label>
@@ -1612,9 +1656,9 @@ main{
 步驟1：建立兒童基本資料
 可以手動輸入，也可以先設定好路徑，直接讀取或查詢特定HIS廠商的資料庫。
 按〔路徑設定〕可以設定HIS的來源路徑和檔案儲存路徑。
-按〔HIS同步〕可以同步HIS廠商的病歷資料庫，提供後續查詢使用。
+按〔HIS更新〕可以同步HIS廠商的病歷資料庫，提供後續查詢使用。
 按〔查詢〕可以查詢HIS的病歷資料庫，依生日、證號、姓名查詢，可以離線使用。
-按〔更新〕可以自動同步HIS系統當日的掛號名單，列出健檢兒童的清單。
+按〔候診同步〕可以自動同步HIS系統當日的掛號名單，列出健檢兒童的清單。
 按〔基本資料儲存〕可將基本資料存檔為「CT-身分證字號-兒童姓名.json」，可供後續重複使用。
 按〔讀取〕可以復原之前存檔的資料，JSON 或XLSX檔案都可以。
 年齡會自動換算，身分證字號會自動驗證，性別會自動帶入，健檢時程會自動判斷。
@@ -1669,33 +1713,37 @@ main{
 
 <div id="pathSettingsOverlay" class="save-confirm-overlay" hidden>
   <div class="save-confirm-dialog path-settings-dialog" role="dialog" aria-modal="true" aria-labelledby="pathSettingsTitle">
-    <div id="pathSettingsTitle" class="save-confirm-title">路徑設定－MyPathSET.json</div>
+    <div id="pathSettingsTitle" class="save-confirm-title">路徑設定－MyCHPathSET.json</div>
     <div class="save-confirm-body">
-      <p class="path-settings-help">設定值會先記錄於瀏覽器，並可儲存為 <strong>MyPathSET.json</strong>。下次開啟網頁時會自動帶入最近一次設定。</p>
+      <p class="path-settings-help">設定會儲存在 <strong>PathHTML\MyCHPathSET.json</strong>。PathHTML 預設為主程式同目錄；PathAPI 預設為 PathHTML\Chart；HIS 磁碟機變更時會同步更新 PathPatdb 與 PathTemp。</p>
       <div class="path-settings-grid">
-        <label for="pathHtmlInput">網頁儲存預設路徑（PathHTML）</label>
-        <div class="path-settings-input-row">
-          <input id="pathHtmlInput" type="text" value="D:\" spellcheck="false">
-          <button id="pathHtmlBrowseBtn" class="btn-tool path-browse-btn" type="button">選擇目錄</button>
-        </div>
+        <label for="pathHtmlInput">[主程式] 所在路徑（PathHTML）</label>
+        <div class="path-settings-input-row"><input id="pathHtmlInput" type="text" value="" spellcheck="false"></div>
 
-        <label for="pathPatdbInput">病歷來源預設路徑（PathPatdb）</label>
-        <div class="path-settings-input-row">
-          <input id="pathPatdbInput" type="text" value="F:\S" spellcheck="false">
-          <button id="pathPatdbBrowseBtn" class="btn-tool path-browse-btn" type="button">選擇目錄</button>
-        </div>
+        <label for="pathApiInput">[兒發病歷] 所在路徑（PathAPI）</label>
+        <div class="path-settings-input-row"><input id="pathApiInput" type="text" value="" spellcheck="false"></div>
 
-        <label for="pathTempInput">候診來源預設路徑（PathTemp）</label>
-        <div class="path-settings-input-row">
-          <input id="pathTempInput" type="text" value="F:\Z" spellcheck="false">
-          <button id="pathTempBrowseBtn" class="btn-tool path-browse-btn" type="button">選擇目錄</button>
-        </div>
+        <label for="hisNameSelect">HIS廠商（HISNAM）</label>
+        <select id="hisNameSelect">
+          <option value="耀聖">耀聖</option>
+          <option value="展望(尚未支援)">展望(尚未支援)</option>
+          <option value="常誠(尚未支援)">常誠(尚未支援)</option>
+          <option value="方鼎(尚未支援)">方鼎(尚未支援)</option>
+          <option value="醫聖(尚未支援)">醫聖(尚未支援)</option>
+          <option value="劉氏">劉氏</option>
+        </select>
 
-        <label for="pathApiInput">API上傳路徑（PathAPI）</label>
-        <div class="path-settings-input-row">
-          <input id="pathApiInput" type="text" value="L:\02_nnWork\PyBank\00Working" spellcheck="false">
-          <button id="pathApiBrowseBtn" class="btn-tool path-browse-btn" type="button">選擇目錄</button>
-        </div>
+        <label for="hisDriveSelect">HIS所在磁碟機（HISDRV）</label>
+        <select id="hisDriveSelect">
+          <option value="Z">Z</option><option value="F">F</option><option value="D">D</option>
+          <option value="E">E</option><option value="G">G</option><option value="H">H</option>
+        </select>
+
+        <label for="pathPatdbInput">[HIS病患基本資料] 所在路徑（PathPatdb）</label>
+        <div class="path-settings-input-row"><input id="pathPatdbInput" type="text" value="Z:\S" spellcheck="false"></div>
+
+        <label for="pathTempInput">[HIS候診清單] 所在路徑（PathTemp）</label>
+        <div class="path-settings-input-row"><input id="pathTempInput" type="text" value="Z:\Z" spellcheck="false"></div>
       </div>
       <div id="pathSettingsMessage" class="path-settings-message" aria-live="polite"></div>
       <input id="pathSettingsFileInput" type="file" accept=".json,application/json" hidden>
@@ -1709,15 +1757,14 @@ main{
 </div>
 
 
-
 <div id="hisSyncOverlay" class="save-confirm-overlay" hidden>
   <div class="save-confirm-dialog his-sync-dialog" role="dialog" aria-modal="true" aria-labelledby="hisSyncTitle">
-    <div id="hisSyncTitle" class="save-confirm-title">HIS同步－PATDB.DBF 轉 PATDB.DB</div>
+    <div id="hisSyncTitle" class="save-confirm-title">HIS更新－PATDB.DBF 轉 PATDB.DB</div>
     <div class="save-confirm-body">
       <div class="his-sync-summary">
         <div class="his-sync-summary-label">病歷來源路徑</div>
         <div id="hisSyncConfiguredPath" class="his-sync-summary-value"></div>
-        <div class="his-sync-summary-label">網頁儲存路徑</div>
+        <div class="his-sync-summary-label">[主程式] 所在路徑</div>
         <div id="hisSyncHtmlPath" class="his-sync-summary-value"></div>
         <div class="his-sync-summary-label">來源檔案</div>
         <div id="hisSyncSourceFile" class="his-sync-summary-value">PATDB.DBF</div>
@@ -1728,7 +1775,7 @@ main{
         <div id="hisSyncProgressBar" class="his-sync-progress-bar"></div>
       </div>
       <div id="hisSyncProgressText" class="his-sync-progress-text">尚未開始</div>
-      <div id="hisSyncMessage" class="his-sync-message" aria-live="polite">按下 HIS同步 後，系統會檢查 PathPatdb 的 PATDB.DBF；找到後覆蓋複製至 PathHTML，並重新建立 PATDB.DB。來源沒有檔案時會停止並顯示通知。</div>
+      <div id="hisSyncMessage" class="his-sync-message" aria-live="polite">按下 HIS更新 後，系統會檢查 PathPatdb 的 PATDB.DBF；找到後覆蓋複製至 PathHTML，並重新建立 PATDB.DB。來源沒有檔案時會停止並顯示通知。</div>
       <input id="hisDbfFallbackInput" type="file" accept=".dbf,application/octet-stream" hidden>
     </div>
     <div class="his-sync-actions">
@@ -1749,16 +1796,17 @@ main{
       </div>
 
       <div class="patdb-query-grid">
-        <label for="patdbQueryBirth">1. 生日</label>
-        <input id="patdbQueryBirth" type="text" inputmode="numeric" autocomplete="off" placeholder="例如：990711、99/07/11、1150711、115/07/11">
-
-        <label for="patdbQueryId">2. 身分證字號</label>
+        <label for="patdbQueryBirth">生日</label>
+        <input id="patdbQueryBirth" type="text" autocomplete="off" placeholder="115、11507、1150711、20260711；可含 / - .">
+        <label for="patdbQueryId">身份證字號</label>
         <input id="patdbQueryId" type="text" autocomplete="off" maxlength="10" placeholder="例如：A123456789">
 
-        <label for="patdbQueryName">3. 姓名</label>
+        <label for="patdbQueryName">姓名</label>
         <input id="patdbQueryName" type="text" autocomplete="off" placeholder="可輸入完整姓名或部分姓名">
+        <label for="patdbQueryPhone">聯絡電話</label>
+        <input id="patdbQueryPhone" type="text" autocomplete="off" inputmode="tel" placeholder="可輸入完整電話或部分號碼">
       </div>
-      <div class="patdb-query-help">生日 6 位數直接查 BIRTH；7 位數先查後 6 位，查無資料再使用年份字母編碼。條件可單獨或合併查詢；按 Enter 搜尋或選定。</div>
+      <div class="patdb-query-help">生日會同時搜尋 BIRTH_RAW、BIRTH、BIRTH_DATE，支援民國年／年月／年月日（115、15、11507、1507、1150711、150711）及西元年／年月／年月日（2026、202607、20260711），也支援 /、-、.。條件可單獨或合併；按 Enter 搜尋，再按 Enter 選定。</div>
       <div class="patdb-query-toolbar">
         <button id="patdbQueryClearBtn" class="btn-secondary" type="button">清除條件</button>
         <button id="patdbQuerySearchBtn" class="btn-primary" type="button">搜尋</button>
@@ -1767,9 +1815,9 @@ main{
 
       <div class="patdb-results-wrap">
         <table class="patdb-results-table" aria-label="PATDB 查詢結果">
-          <thead><tr><th>NAME</th><th>ID</th><th>BIRTH</th></tr></thead>
+          <thead><tr><th>姓名</th><th>生日</th><th>證號</th><th>電話</th></tr></thead>
           <tbody id="patdbQueryResultsBody">
-            <tr><td colspan="3" class="patdb-results-empty">請輸入條件後搜尋。</td></tr>
+            <tr><td colspan="4" class="patdb-results-empty">請輸入條件後搜尋。</td></tr>
           </tbody>
         </table>
       </div>
@@ -1795,9 +1843,9 @@ main{
       <div id="waitingListMessage" class="waiting-list-message" aria-live="polite"></div>
       <div class="patdb-results-wrap">
         <table class="waiting-list-table" aria-label="TEMP.DB 全部候診資料">
-          <thead><tr><th>NAME</th><th>CARD</th><th>INSNO前4碼</th><th>ID</th><th>BIRTH</th></tr></thead>
+          <thead><tr><th>姓名</th><th>卡號</th><th>生日</th><th>證號</th></tr></thead>
           <tbody id="waitingListResultsBody">
-            <tr><td colspan="5" class="patdb-results-empty">正在準備候診清單。</td></tr>
+            <tr><td colspan="4" class="patdb-results-empty">正在準備候診清單。</td></tr>
           </tbody>
         </table>
       </div>
@@ -1811,12 +1859,12 @@ main{
 
 <div id="tempUpdateOverlay" class="save-confirm-overlay" hidden>
   <div class="save-confirm-dialog patdb-query-dialog" role="dialog" aria-modal="true" aria-labelledby="tempUpdateTitle">
-    <div id="tempUpdateTitle" class="save-confirm-title">候診資料更新－TEMP.DBF 轉 TEMP.DB</div>
+    <div id="tempUpdateTitle" class="save-confirm-title">候診同步－TEMP.DBF 轉 TEMP.DB</div>
     <div class="save-confirm-body">
       <div class="his-sync-summary">
         <div class="his-sync-summary-label">候診來源路徑</div>
         <div id="tempConfiguredPath" class="his-sync-summary-value"></div>
-        <div class="his-sync-summary-label">網頁儲存路徑</div>
+        <div class="his-sync-summary-label">[主程式] 所在路徑</div>
         <div id="tempHtmlPath" class="his-sync-summary-value"></div>
         <div class="his-sync-summary-label">來源檔案</div>
         <div id="tempSourceFile" class="his-sync-summary-value">TEMP.DBF</div>
@@ -1827,14 +1875,14 @@ main{
         <div id="tempProgressBar" class="his-sync-progress-bar"></div>
       </div>
       <div id="tempProgressText" class="his-sync-progress-text">尚未開始</div>
-      <div id="tempUpdateMessage" class="his-sync-message" aria-live="polite">按下「更新」後，系統會依序在 PathTemp 尋找 TEMP.DBF、TEMP_今日民國YYYMMDD.DBF、TEMP今日民國YYYMM.DBF；找到後一律覆蓋複製成 PathHTML\TEMP.DBF。三者皆不存在時，先讀取 PathHTML 既有 TEMP.DBF；PathHTML 也沒有時會開啟檔案瀏覽，選取後覆蓋複製成 TEMP.DBF，按取消則離開。轉換 TEMP.DB 後，先判斷 INSNO 前四碼是否為 IC71～IC79，否則再判斷 CARD；INSNO 資料顯示 BIRTH 並以 GP 第二碼+BIRTH 帶入，CARD 資料顯示並直接帶入 BIRTH2；選定後以 TEMP.ID 查詢 PATDB.DB 同 ID 的 ADDR。</div>
+      <div id="tempUpdateMessage" class="his-sync-message" aria-live="polite">按下「候診同步」後，系統會檢查 PathTemp\TEMP.DBF；找到後覆蓋複製至 PathHTML\TEMP.DBF，轉換為 TEMP.DB（包含 deleted，字元欄位維持文字、數值空白為 NULL），並依 HISNAM 篩選 IC71～IC79。劉氏使用 INSNO 前4碼與完整 BIRTH；耀聖使用 CARD 前4碼並以 BIRTH2 帶入。地址由 PATDB.DB 相同 ID 的 ADDR 帶入。</div>
 
       <div class="temp-results-shell">
         <div id="tempResultsScroll" class="temp-results-scroll" aria-label="TEMP 候診資料可捲動區域">
           <table class="patdb-results-table temp-results-table" aria-label="TEMP 候診資料清單">
-            <thead><tr><th>NAME</th><th>ID</th><th>BIRTH／BIRTH2</th><th>INSNO／CARD</th></tr></thead>
+            <thead><tr><th>姓名</th><th>生日</th><th>證號</th><th>卡號</th></tr></thead>
             <tbody id="tempResultsBody">
-              <tr><td colspan="4" class="patdb-results-empty">尚未更新候診資料。</td></tr>
+              <tr><td colspan="4" class="patdb-results-empty">尚未同步候診資料。</td></tr>
             </tbody>
           </table>
         </div>
@@ -1886,9 +1934,9 @@ main{
   <div class="save-confirm-dialog first-launch-dialog" role="dialog" aria-modal="true" aria-labelledby="savePathSetupTitle">
     <div id="savePathSetupTitle" class="save-confirm-title">第一次啟動：基本設定</div>
     <div class="save-confirm-body">
-      <p class="save-path-setup-intro">請設定網頁儲存資料夾與施測院所資料。設定完成後會記錄於瀏覽器，並立即帶入主畫面。</p>
+      <p class="save-path-setup-intro">請設定掛號預設資料夾與施測院所資料。設定完成後會記錄於瀏覽器，並立即帶入主畫面。</p>
       <div class="first-launch-grid">
-        <label for="savePathSetupPath">儲存路徑（PathHTML） <span class="first-launch-required">*</span></label>
+        <label for="savePathSetupPath">掛號預設路徑（PathHTML） <span class="first-launch-required">*</span></label>
         <div class="first-launch-path-row">
           <input id="savePathSetupPath" type="text" value="D:\" spellcheck="false" aria-describedby="savePathSetupFolderStatus">
           <button id="savePathSetupChoose" class="btn-secondary" type="button">選擇目錄</button>
@@ -2000,8 +2048,7 @@ const pad2 = n => String(n).padStart(2,"0");
 const WAITING_LIST_HOSPITAL_PREFIX="351706153";
 function updateWaitingListButtonVisibility(){
   const button=$("waitingListBtn");
-  const hospitalId=String($("hospitalId")?.value || "").trim();
-  if(button) button.hidden=!hospitalId.startsWith(WAITING_LIST_HOSPITAL_PREFIX);
+  if(button) button.hidden=false;
 }
 
 function showNamedDirectoryPicker(title,message,options){
@@ -2349,14 +2396,46 @@ function clearRadioGroupByTitle(groupTitle){
   group.querySelectorAll('input[type="radio"]').forEach(input=>input.checked=false);
 }
 
-function updateAssessmentAutomation(){
-  const hasGeneral=anyCheckedInGroup("一般檢查");
-  const hasAttention=anyCheckedInGroup("注意項目");
+function setCheckboxInGroup(groupTitle,optionNames,checked){
+  const group=document.querySelector(`[data-group-title="${groupTitle}"]`);
+  if(!group) return false;
+  const names=Array.isArray(optionNames)?optionNames:[optionNames];
+  let changed=false;
+  group.querySelectorAll('input[type="checkbox"]').forEach(input=>{
+    if(!names.includes(String(input.value||""))) return;
+    const next=!!checked;
+    if(input.checked!==next){input.checked=next;changed=true}
+  });
+  return changed;
+}
 
+function updateGrowthEducationFromAttention(){
+  const attention=document.querySelector('[data-group-title="注意項目"]');
+  if(!attention) return;
+  const growthNames=new Set(["身長","身高","體重","頭圍","BMI"]);
+  const hasGrowth=[...attention.querySelectorAll('input[type="checkbox"]')]
+    .some(input=>input.checked && growthNames.has(String(input.value||"")));
+  if(!hasGrowth) return;
+
+  selectRadioByGroupTitle("衛教狀況","已加強衛教項目");
+  const code=getHealthExamCode(currentAge);
+  let target="";
+  if(["71","72","73","74","75"].includes(code)) target="孩子哺餵";
+  else if(["76","77"].includes(code)) target="孩子飲食";
+  else if(["78","79"].includes(code)) target="預防事故傷害";
+  if(target) setCheckboxInGroup("已加強衛教項目",target,true);
+}
+
+function updateAssessmentAutomation(){
+  const hasAttention=anyCheckedInGroup("注意項目");
+  // v160：注意項目任一勾選 → 一般檢查「其他」自動勾選；沒有注意項目 → 自動清空「其他」。
+  setCheckboxInGroup("一般檢查","其他",hasAttention);
+  const hasGeneral=anyCheckedInGroup("一般檢查");
   if(hasGeneral || hasAttention){
     selectRadioByGroupTitle("評估結果","需注意或異常項目");
     selectRadioByGroupTitle("身體檢查處置","建議定期追蹤");
   }
+  updateGrowthEducationFromAttention();
 }
 
 function bindAssessmentResultRules(){
@@ -2803,7 +2882,7 @@ async function selectPatdbSourceFromHtmlFallback(sourceError){
   setHisSyncProgress(8,"PathPatdb 失敗，正在檢查 PathHTML…");
   setHisSyncMessage([
     `PathPatdb 來源讀取失敗：${failureMessage}`,
-    "正在檢查網頁儲存預設路徑（PathHTML）內是否已有 PATDB.DBF。",
+    "正在檢查掛號預設路徑（PathHTML）內是否已有 PATDB.DBF。",
     `PathHTML：${configuredPathValue("html")}`
   ].join("\n"));
   setStatus("PathPatdb 讀取失敗，正在改用 PathHTML 的 PATDB.DBF。",false);
@@ -2990,6 +3069,80 @@ function parseDbfArrayBuffer(buffer,fileLabel="DBF",options={}){
   return {version,declaredRecordCount,recordCount,deletedCount,fields,rows,deletedFlags,includeDeletedRecords};
 }
 
+
+function rocBirthToIsoDate(rocBirth){
+  const digits=String(rocBirth??"").replace(/\D/g,"");
+  if(digits.length!==7) return "";
+  const rocYear=Number(digits.slice(0,3));
+  const month=Number(digits.slice(3,5));
+  const day=Number(digits.slice(5,7));
+  const year=rocYear+1911;
+  if(!Number.isInteger(year) || month<1 || month>12 || day<1 || day>31) return "";
+  const d=new Date(Date.UTC(year,month-1,day));
+  if(d.getUTCFullYear()!==year || d.getUTCMonth()!==month-1 || d.getUTCDate()!==day) return "";
+  return `${String(year).padStart(4,"0")}-${pad2(month)}-${pad2(day)}`;
+}
+
+function liouCompleteBirth(rawBirth,gp){
+  let raw=String(rawBirth??"").trim().replace(/[^0-9]/g,"");
+  if(!raw) return "";
+  if(raw.length===7) return raw;
+  if(raw.length>6) raw=raw.slice(-6);
+  raw=raw.padStart(6,"0");
+  const gpText=String(gp??"").trim();
+  const second=gpText.length>=2 ? gpText.charAt(1) : "";
+  const prefix=(second==="1" || second==="2") ? second : "0";
+  return `${prefix}${raw}`;
+}
+
+function yaoshengCompleteBirth(rawBirth){
+  const raw=String(rawBirth??"").trim().toUpperCase().replace(/[\s/.-]/g,"");
+  if(!raw) return "";
+  if(/^\d{7}$/.test(raw)) return raw;
+  if(/^[A-Z]/.test(raw)){
+    const prefix=10+(raw.charCodeAt(0)-65);
+    const rest=raw.slice(1).replace(/\D/g,"");
+    if(prefix>=10 && prefix<=35 && rest) return `${prefix}${rest}`.slice(0,7);
+  }
+  let digits=raw.replace(/\D/g,"");
+  if(digits.length>6) digits=digits.slice(-6);
+  return digits ? `0${digits.padStart(6,"0")}` : "";
+}
+
+function prepareHisDbfParsed(parsed,hisName){
+  if(!parsed || !Array.isArray(parsed.fields) || !Array.isArray(parsed.rows)) return parsed;
+  const vendor=String(hisName||"").trim();
+  const birthIndex=parsed.fields.findIndex(field=>String(field.name||"").toUpperCase()==="BIRTH");
+  if(birthIndex<0) throw new Error("DBF 缺少 BIRTH 欄位，無法建立完整生日");
+  const gpIndex=parsed.fields.findIndex(field=>String(field.name||"").toUpperCase()==="GP");
+  if(vendor.startsWith("劉氏") && gpIndex<0) throw new Error("劉氏 HIS 的 DBF 缺少 GP 欄位，無法建立完整生日");
+
+  // 原始 BIRTH 欄位改名 BIRTH_RAW，並新增完整民國生日 BIRTH 與西元 BIRTH_DATE。
+  const fields=parsed.fields.map(field=>({...field}));
+  fields[birthIndex]={...fields[birthIndex],name:"BIRTH_RAW",originalName:fields[birthIndex].originalName || "BIRTH",type:"C"};
+  // 若來源本來就有同名衍生欄位，先改名保留，避免 SQLite 重複欄名。
+  for(let i=0;i<fields.length;i++){
+    if(i===birthIndex) continue;
+    const upper=String(fields[i].name||"").toUpperCase();
+    if(upper==="BIRTH_RAW") fields[i].name=`BIRTH_RAW_SRC_${i}`;
+    if(upper==="BIRTH_DATE") fields[i].name=`BIRTH_DATE_SRC_${i}`;
+  }
+  fields.push({name:"BIRTH",originalName:"BIRTH",type:"C",length:7,decimals:0});
+  fields.push({name:"BIRTH_DATE",originalName:"BIRTH_DATE",type:"C",length:10,decimals:0});
+
+  const rows=parsed.rows.map(row=>{
+    const next=row.slice();
+    const raw=String(row[birthIndex]??"").trim();
+    next[birthIndex]=raw;
+    const gp=gpIndex>=0 ? row[gpIndex] : "";
+    const complete=vendor.startsWith("耀聖") ? yaoshengCompleteBirth(raw) : liouCompleteBirth(raw,gp);
+    next.push(complete);
+    next.push(rocBirthToIsoDate(complete));
+    return next;
+  });
+  return {...parsed,fields,rows};
+}
+
 function sqliteTypeForDbfField(field){
   if(field.type==="I" || field.type==="L") return "INTEGER";
   if(["N","F","B","O","Y"].includes(field.type)) return field.decimals>0 || ["F","B","O","Y"].includes(field.type) ? "REAL" : "INTEGER";
@@ -3070,6 +3223,15 @@ async function buildSqliteDatabase(parsed,onProgress,tableName="PATDB",userVersi
       stmt.free();
     }
     db.run("COMMIT;");
+    if(options?.createHisIndexes===true){
+      const fieldMap=new Map(parsed.fields.map(field=>[String(field.name||"").toUpperCase(),String(field.name||"")]));
+      for(const wanted of ["NAME","ID","TEL","BIRTH","BIRTH_DATE"]){
+        const actual=fieldMap.get(wanted);
+        if(!actual) continue;
+        const safeIndex=`idx_${String(tableName).replace(/[^A-Za-z0-9_]/g,"_")}_${wanted.toLowerCase()}`;
+        db.run(`CREATE INDEX IF NOT EXISTS ${quoteSqlIdentifier(safeIndex)} ON ${quoteSqlIdentifier(tableName)} (${quoteSqlIdentifier(actual)});`);
+      }
+    }
     db.run(`PRAGMA user_version=${Math.max(0,Number(userVersion)||0)};`);
     return db.export();
   }catch(err){
@@ -3118,7 +3280,7 @@ async function checkExistingPatdbDatabaseBeforeSync(){
 
   setHisSyncProgress(3,"正在檢查 PathHTML 的 PATDB.DB…");
   setHisSyncMessage([
-    "正在檢查網頁儲存預設路徑（PathHTML）是否已有 PATDB.DB。",
+    "正在檢查掛號預設路徑（PathHTML）是否已有 PATDB.DB。",
     `PathHTML：${configuredPathValue("html")}`,
     "若資料庫已存在，將直接顯示完成，不再重複執行 DBF → SQLite 轉檔。"
   ].join("\n"));
@@ -3166,6 +3328,7 @@ async function runHisSync(){
   setStatus("HIS同步：正在檢查 PathPatdb 的 PATDB.DBF。",false);
 
   try{
+    assertSupportedHisVendor();
     if(!("showDirectoryPicker" in window)){
       throw new Error("目前瀏覽器不支援資料夾存取，請使用 Chrome 或 Edge 執行");
     }
@@ -3186,8 +3349,8 @@ async function runHisSync(){
       if($("hisSyncSourceFile")) $("hisSyncSourceFile").textContent="PATDB.DBF（找不到）";
       if($("hisSyncOutputFile")) $("hisSyncOutputFile").textContent="未執行";
       setHisSyncProgress(0,"沒有可更新的病歷檔");
-      setHisSyncMessage("來源預設路徑沒有病歷檔可以更新","error");
-      setStatus("來源預設路徑沒有病歷檔可以更新",true);
+      setHisSyncMessage("[HIS病患基本資料] 所在路徑沒有病歷檔可以更新","error");
+      setStatus("[HIS病患基本資料] 所在路徑沒有病歷檔可以更新",true);
       return;
     }
 
@@ -3228,8 +3391,10 @@ async function runHisSync(){
     ].join("\n"));
 
     // 3. 僅以 PathHTML 中剛覆蓋完成的 PATDB.DBF 建立 PATDB.DB。
+    assertSupportedHisVendor();
     const buffer=await copied.file.arrayBuffer();
-    const parsed=parseDbfArrayBuffer(buffer,"PATDB.DBF");
+    const rawParsed=parseDbfArrayBuffer(buffer,"PATDB.DBF");
+    const parsed=prepareHisDbfParsed(rawParsed,currentHisName());
     setHisSyncProgress(32,`DBF 解析完成：${parsed.rows.length.toLocaleString()} 筆有效紀錄`);
     setHisSyncMessage([
       `使用檔案：${copied.location}`,
@@ -3244,7 +3409,7 @@ async function runHisSync(){
       const ratio=total ? done/total : 1;
       const percent=32+Math.round(ratio*55);
       setHisSyncProgress(percent,`正在寫入 SQLite：${done.toLocaleString()} / ${total.toLocaleString()} 筆`);
-    });
+    },"PATDB",160,{createHisIndexes:true});
 
     setHisSyncProgress(90,"正在覆蓋建立 PATDB.DB…");
     const result=await writeHisDatabase(sqliteBytes,htmlDirectoryHandle);
@@ -3264,6 +3429,9 @@ async function runHisSync(){
       `PathHTML 病歷檔：${copied.location}（已覆蓋）`,
       `PathHTML 資料庫：${result.location}（已重新建立）`,
       "SQLite 資料表：PATDB",
+      `HIS廠商：${currentHisName()}`,
+      "生日欄位：BIRTH_RAW／BIRTH／BIRTH_DATE",
+      "索引：NAME／ID／TEL／BIRTH／BIRTH_DATE（存在欄位才建立）",
       `欄位數：${parsed.fields.length}`,
       `有效紀錄：${parsed.rows.length.toLocaleString()}`,
       `略過刪除紀錄：${parsed.deletedCount.toLocaleString()}`,
@@ -3296,6 +3464,8 @@ async function runHisSync(){
 let waitingListDatabase=null;
 let waitingListBusy=false;
 let waitingListSourceName="";
+let waitingListRows=[];
+let waitingListSelectBusy=false;
 
 function setWaitingListMessage(message,state=""){
   const el=$("waitingListMessage");
@@ -3320,16 +3490,40 @@ function closeWaitingListDatabase(){
 function renderWaitingListRows(rows,emptyText="TEMP.DB 目前沒有資料。"){
   const body=$("waitingListResultsBody");
   if(!body) return;
-  if(!Array.isArray(rows) || !rows.length){
-    body.innerHTML=`<tr><td colspan="5" class="patdb-results-empty">${escapeHtml(emptyText)}</td></tr>`;
+  waitingListRows=Array.isArray(rows)?rows:[];
+  if(!waitingListRows.length){
+    body.innerHTML=`<tr><td colspan="4" class="patdb-results-empty">${escapeHtml(emptyText)}</td></tr>`;
     return;
   }
-  body.innerHTML=rows.map(row=>{
+  body.innerHTML=waitingListRows.map((row,index)=>{
+    const source=String(row.WAITSOURCE||"").trim();
+    const rawCard=String(row.CARDNO||"").trim();
+    const cardDisplay=source==="INSNO" ? rawCard.slice(0,4).toUpperCase() : rawCard;
+    const health=isHealthCardCode(cardDisplay);
     const deleted=Number(row._DELETED||0)===1;
-    const rowClass=deleted?' class="deleted-record"':'';
-    const rowTitle=deleted?' title="此筆為 DBF 刪除標記紀錄（deleted=1）"':'';
-    return `<tr${rowClass}${rowTitle}><td title="${escapeHtml(row.NAME)}">${escapeHtml(row.NAME)}</td><td title="${escapeHtml(row.CARD)}">${escapeHtml(row.CARD)}</td><td title="${escapeHtml(row.INSNO4)}">${escapeHtml(row.INSNO4)}</td><td title="${escapeHtml(row.ID)}">${escapeHtml(row.ID)}</td><td title="${escapeHtml(row.BIRTH)}">${escapeHtml(row.BIRTH)}</td></tr>`;
+    const classes=[health?"health-card":"",deleted?"deleted-record":""].filter(Boolean).join(" ");
+    const title=deleted?"此筆為 DBF 刪除標記紀錄（deleted=1）；按左鍵可帶入":"按左鍵可帶入";
+    return `<tr data-wait-index="${index}" class="${classes}" title="${escapeHtml(title)}"><td>${escapeHtml(row.NAME)}</td><td>${escapeHtml(cardDisplay)}</td><td>${escapeHtml(row.BIRTH)}</td><td>${escapeHtml(row.ID)}</td></tr>`;
   }).join("");
+  body.querySelectorAll("tr[data-wait-index]").forEach(tr=>{
+    tr.addEventListener("click",()=>selectWaitingListRecord(Number(tr.dataset.waitIndex)));
+  });
+}
+
+async function selectWaitingListRecord(index){
+  if(waitingListSelectBusy) return;
+  const record=waitingListRows[index];
+  if(!record) return;
+  waitingListSelectBusy=true;
+  setWaitingListMessage(`正在帶入 ${String(record.NAME||"").trim()}，並以 ID 查詢 PATDB.DB 地址…`);
+  try{
+    let lookup={found:false,address:"",reason:""};
+    try{lookup=await findPatdbAddressByTempId(record.ID)}catch(err){lookup.reason=err?.message||String(err)}
+    applyTempRecord(record,lookup.found?lookup.address:"");
+    closeWaitingListDialog();
+    const base=`已帶入候診資料：${String(record.NAME||"").trim()}／${String(record.ID||"").trim()}`;
+    setStatus(lookup.found?`${base}；地址已由 PATDB.DB 帶入。`:`${base}；${lookup.reason||"PATDB.DB 查無地址"}。`,!lookup.found);
+  }finally{waitingListSelectBusy=false}
 }
 
 function requestFallbackWaitingListDbFile(){
@@ -3384,23 +3578,42 @@ async function chooseWaitingListDbSource(){
 }
 
 function resolveWaitingListColumns(db){
+  assertSupportedHisVendor();
   const result=db.exec(`PRAGMA table_info(${quoteSqlIdentifier("TEMP")})`);
   if(!result.length) throw new Error("TEMP.DB 內找不到 TEMP 資料表");
   const names=result[0].values.map(row=>String(row[1]||""));
   const map=new Map(names.map(name=>[name.toUpperCase(),name]));
-  const required=["NAME","CARD","INSNO","ID","BIRTH"];
+  const required=["NAME","ID","BIRTH"];
   const missing=required.filter(name=>!map.has(name));
   if(missing.length) throw new Error(`TEMP 資料表缺少欄位：${missing.join("、")}`);
+  if(isLiouHis() && !map.has("INSNO")) throw new Error("劉氏 HIS 的 TEMP 資料表缺少 INSNO 欄位");
+  if(isYaoshengHis() && !map.has("CARD")) throw new Error("耀聖 HIS 的 TEMP 資料表缺少 CARD 欄位");
   return {
-    NAME:map.get("NAME"),CARD:map.get("CARD"),INSNO:map.get("INSNO"),
-    ID:map.get("ID"),BIRTH:map.get("BIRTH"),DELETED:map.get("DELETED")||null
+    NAME:map.get("NAME"),ID:map.get("ID"),BIRTH:map.get("BIRTH"),BIRTH2:map.get("BIRTH2")||null,
+    INSNO:map.get("INSNO")||null,CARD:map.get("CARD")||null,
+    SEX:map.get("SEX")||null,TEL:map.get("TEL")||null,GP:map.get("GP")||null,
+    DELETED:map.get("DELETED")||null
   };
 }
 
 function queryAllWaitingListRows(db,columns){
   const c=columns;
+  const liou=isLiouHis();
+  const cardCol=liou?c.INSNO:c.CARD;
+  const cardText=`TRIM(CAST(${quoteSqlIdentifier(cardCol)} AS TEXT))`;
+  // v162：劉氏候診清單卡號只顯示 INSNO 前4碼；耀聖顯示完整 CARD。
+  const cardDisplay=liou ? `UPPER(SUBSTR(${cardText},1,4))` : cardText;
   const deletedSelect=c.DELETED ? `${quoteSqlIdentifier(c.DELETED)} AS _DELETED` : `0 AS _DELETED`;
-  const sql=`SELECT ${quoteSqlIdentifier(c.NAME)} AS NAME,${quoteSqlIdentifier(c.CARD)} AS CARD,SUBSTR(TRIM(CAST(${quoteSqlIdentifier(c.INSNO)} AS TEXT)),1,4) AS INSNO4,${quoteSqlIdentifier(c.ID)} AS ID,${quoteSqlIdentifier(c.BIRTH)} AS BIRTH,${deletedSelect} FROM ${quoteSqlIdentifier("TEMP")} ORDER BY rowid`;
+  const select=[
+    `${quoteSqlIdentifier(c.NAME)} AS NAME`,`${quoteSqlIdentifier(c.ID)} AS ID`,`${quoteSqlIdentifier(c.BIRTH)} AS BIRTH`,
+    c.BIRTH2?`${quoteSqlIdentifier(c.BIRTH2)} AS BIRTH2`:`'' AS BIRTH2`,
+    `${cardDisplay} AS CARDNO`,
+    `'${liou?"INSNO":"CARD"}' AS WAITSOURCE`,
+    c.SEX?`${quoteSqlIdentifier(c.SEX)} AS SEX`:`'' AS SEX`,
+    c.TEL?`${quoteSqlIdentifier(c.TEL)} AS TEL`:`'' AS TEL`,
+    c.GP?`${quoteSqlIdentifier(c.GP)} AS GP`:`'' AS GP`,deletedSelect
+  ];
+  const sql=`SELECT ${select.join(",")} FROM ${quoteSqlIdentifier("TEMP")} ORDER BY rowid`;
   const stmt=db.prepare(sql);
   const rows=[];
   try{while(stmt.step()) rows.push(stmt.getAsObject())}finally{stmt.free()}
@@ -3629,15 +3842,8 @@ function requestFallbackTempDbfFile(){
   });
 }
 
-function getTodayTempSourceCandidates(now=new Date()){
-  const rocYear=String(now.getFullYear()-1911).padStart(3,"0");
-  const month=pad2(now.getMonth()+1);
-  const day=pad2(now.getDate());
-  return [
-    {name:"TEMP.DBF",kind:"固定檔名"},
-    {name:`TEMP_${rocYear}${month}${day}.DBF`,kind:"今日檔名"},
-    {name:`TEMP${rocYear}${month}.DBF`,kind:"本月檔名"}
-  ];
+function getTodayTempSourceCandidates(_now=new Date()){
+  return [{name:"TEMP.DBF",kind:"固定檔名"}];
 }
 
 async function findPreferredTempDbf(sourceDirectoryHandle){
@@ -3658,7 +3864,7 @@ async function selectTempSource(){
     if(!sourceDirectoryHandle) return null;
     const preferred=await findPreferredTempDbf(sourceDirectoryHandle);
     if(!preferred.file){
-      throw new Error(`候診來源預設路徑（PathTemp）內依序找不到：${candidates.map(item=>item.name).join("、")}；PathTemp：${configuredPathValue("temp")}`);
+      throw new Error(`[HIS候診清單] 所在路徑沒有 TEMP.DBF 可以更新；PathTemp：${configuredPathValue("temp")}`);
     }
     const htmlDirectoryHandle=await selectHtmlOutputDirectory();
     if(!htmlDirectoryHandle) return null;
@@ -3702,7 +3908,7 @@ async function selectTempSourceFromHtmlFallback(sourceError){
   setTempProgress(8,"PathTemp 無可用檔案，正在檢查 PathHTML…");
   setTempMessage([
     `PathTemp 檢查結果：${failureMessage}`,
-    "正在檢查網頁儲存預設路徑（PathHTML）內是否已有 TEMP.DBF。",
+    "正在檢查掛號預設路徑（PathHTML）內是否已有 TEMP.DBF。",
     `PathHTML：${configuredPathValue("html")}`
   ].join("\n"));
   setStatus("PathTemp 找不到指定檔案，正在檢查 PathHTML 的 TEMP.DBF。",false);
@@ -3800,14 +4006,14 @@ function resolveTempColumns(db){
   if(!result.length) throw new Error("TEMP.DB 內找不到 TEMP 資料表");
   const names=result[0].values.map(row=>String(row[1]||""));
   const map=new Map(names.map(name=>[name.toUpperCase(),name]));
-  const required=["NAME","ID","BIRTH","GP"];
+  const required=["NAME","ID","BIRTH"];
   const missing=required.filter(name=>!map.has(name));
   if(missing.length) throw new Error(`TEMP 資料表缺少欄位：${missing.join("、")}`);
-  if(!map.has("INSNO") && !map.has("CARD")){
-    throw new Error("TEMP 資料表缺少 INSNO 與 CARD 欄位，無法判斷候診健檢資料");
-  }
+  if(isLiouHis() && !map.has("INSNO")) throw new Error("劉氏 HIS 的 TEMP 資料表缺少 INSNO 欄位");
+  if(isYaoshengHis() && !map.has("CARD")) throw new Error("耀聖 HIS 的 TEMP 資料表缺少 CARD 欄位");
   return {
-    NAME:map.get("NAME"),ID:map.get("ID"),BIRTH:map.get("BIRTH"),BIRTH2:map.get("BIRTH2")||null,GP:map.get("GP"),
+    NAME:map.get("NAME"),ID:map.get("ID"),BIRTH:map.get("BIRTH"),BIRTH_RAW:map.get("BIRTH_RAW")||null,
+    BIRTH_DATE:map.get("BIRTH_DATE")||null,BIRTH2:map.get("BIRTH2")||null,GP:map.get("GP")||null,
     INSNO:map.get("INSNO")||null,CARD:map.get("CARD")||null,
     SEX:map.get("SEX")||null,TEL:map.get("TEL")||null,ADDR:map.get("ADDR")||null,
     DELETED:map.get("DELETED")||null
@@ -3815,39 +4021,38 @@ function resolveTempColumns(db){
 }
 
 const TEMP_HEALTH_CODES=["IC71","IC72","IC73","IC74","IC75","IC76","IC77","IC78","IC79"];
+function isHealthCardCode(value){
+  return TEMP_HEALTH_CODES.includes(String(value||"").trim().toUpperCase().slice(0,4));
+}
 
 function queryTempWaitingRows(db,columns){
+  assertSupportedHisVendor();
   const c=columns;
-  const insnoText=c.INSNO
-    ? `TRIM(CAST(${quoteSqlIdentifier(c.INSNO)} AS TEXT))`
-    : `''`;
-  const cardText=c.CARD
-    ? `TRIM(CAST(${quoteSqlIdentifier(c.CARD)} AS TEXT))`
-    : `''`;
-  const validSql=TEMP_HEALTH_CODES.map(code=>`'${code}'`).join(",");
-  const insnoCode=`UPPER(SUBSTR(${insnoText},1,4))`;
+  const liou=isLiouHis();
+  const cardColumn=liou ? c.INSNO : c.CARD;
+  if(!cardColumn) throw new Error(`${currentHisName()} TEMP 資料表缺少候診卡號欄位`);
+  const cardText=`TRIM(CAST(${quoteSqlIdentifier(cardColumn)} AS TEXT))`;
   const cardCode=`UPPER(SUBSTR(${cardText},1,4))`;
-  const insnoMatch=`${insnoCode} IN (${validSql})`;
-  const cardMatch=`${cardCode} IN (${validSql})`;
-  const waitCode=`CASE WHEN ${insnoMatch} THEN ${insnoCode} WHEN ${cardMatch} THEN ${cardCode} ELSE '' END`;
-  const waitSource=`CASE WHEN ${insnoMatch} THEN 'INSNO' WHEN ${cardMatch} THEN 'CARD' ELSE '' END`;
-  // INSNO 符合時優先採用 INSNO；只有 INSNO 不符合時才判斷 CARD。
-  // 清單第四欄顯示完整 INSNO 或完整 CARD，篩選仍只判斷前四碼。
-  const waitDisplay=`CASE WHEN ${insnoMatch} THEN ${insnoText} WHEN ${cardMatch} THEN ${cardText} ELSE '' END`;
+  const validSql=TEMP_HEALTH_CODES.map(code=>`'${code}'`).join(",");
+  const match=`${cardCode} IN (${validSql})`;
   const select=[
     `${quoteSqlIdentifier(c.NAME)} AS NAME`,`${quoteSqlIdentifier(c.ID)} AS ID`,
     `${quoteSqlIdentifier(c.BIRTH)} AS BIRTH`,
+    c.BIRTH_RAW?`${quoteSqlIdentifier(c.BIRTH_RAW)} AS BIRTH_RAW`:`'' AS BIRTH_RAW`,
+    c.BIRTH_DATE?`${quoteSqlIdentifier(c.BIRTH_DATE)} AS BIRTH_DATE`:`'' AS BIRTH_DATE`,
     c.BIRTH2?`${quoteSqlIdentifier(c.BIRTH2)} AS BIRTH2`:`'' AS BIRTH2`,
-    `${waitCode} AS WAITCODE`,`${waitSource} AS WAITSOURCE`,`${waitDisplay} AS WAITDISPLAY`,
+    `${cardCode} AS WAITCODE`,
+    `'${liou?"INSNO":"CARD"}' AS WAITSOURCE`,
+    liou?`${cardCode} AS WAITDISPLAY`:`${cardText} AS WAITDISPLAY`,
     c.INSNO?`${quoteSqlIdentifier(c.INSNO)} AS INSNO`:`'' AS INSNO`,
     c.CARD?`${quoteSqlIdentifier(c.CARD)} AS CARD`:`'' AS CARD`,
-    `${quoteSqlIdentifier(c.GP)} AS GP`,
+    c.GP?`${quoteSqlIdentifier(c.GP)} AS GP`:`'' AS GP`,
     c.SEX?`${quoteSqlIdentifier(c.SEX)} AS SEX`:`'' AS SEX`,
     c.TEL?`${quoteSqlIdentifier(c.TEL)} AS TEL`:`'' AS TEL`,
     c.ADDR?`${quoteSqlIdentifier(c.ADDR)} AS ADDR`:`'' AS ADDR`
   ];
   const activeOnly=c.DELETED ? `COALESCE(CAST(${quoteSqlIdentifier(c.DELETED)} AS INTEGER),0)=0 AND ` : "";
-  const sql=`SELECT ${select.join(",")} FROM ${quoteSqlIdentifier("TEMP")} WHERE ${activeOnly}((${insnoMatch}) OR (${cardMatch})) ORDER BY ${quoteSqlIdentifier(c.NAME)},${quoteSqlIdentifier(c.ID)}`;
+  const sql=`SELECT ${select.join(",")} FROM ${quoteSqlIdentifier("TEMP")} WHERE ${activeOnly}(${match}) ORDER BY ${quoteSqlIdentifier(c.NAME)},${quoteSqlIdentifier(c.ID)}`;
   const stmt=db.prepare(sql);
   const rows=[];
   try{while(stmt.step()) rows.push(stmt.getAsObject())}finally{stmt.free()}
@@ -3888,12 +4093,14 @@ function renderTempResults(rows,emptyText="TEMP.DB 目前沒有 INSNO 或 CARD �
   }
   body.innerHTML=rows.map((row,index)=>{
     const source=String(row.WAITSOURCE||"").trim();
-    const display=String(row.WAITDISPLAY||row.WAITCODE||"").trim();
-    const sourceTitle=source==="INSNO" ? "INSNO" : source==="CARD" ? "CARD" : "";
+    const rawDisplay=String(row.WAITDISPLAY||row.WAITCODE||"").trim();
+    // v162：候診同步顯示規則－劉氏 INSNO 僅顯示前4碼，耀聖 CARD 維持原值。
+    const display=source==="INSNO" ? rawDisplay.slice(0,4).toUpperCase() : rawDisplay;
+    const sourceTitle=source==="INSNO" ? "INSNO前4碼" : source==="CARD" ? "CARD" : "";
     const title=sourceTitle ? `${sourceTitle}：${display}` : display;
-    const birthDisplay=source==="CARD" ? String(row.BIRTH2??"").trim() : String(row.BIRTH??"").trim();
-    const birthTitle=source==="CARD" ? `BIRTH2：${birthDisplay}` : `BIRTH：${birthDisplay}`;
-    return `<tr data-temp-index="${index}" class="${index===tempQueryActiveIndex?'active':''}" tabindex="-1"><td title="${escapeHtml(row.NAME)}">${escapeHtml(row.NAME)}</td><td title="${escapeHtml(row.ID)}">${escapeHtml(row.ID)}</td><td title="${escapeHtml(birthTitle)}">${escapeHtml(birthDisplay)}</td><td title="${escapeHtml(title)}">${escapeHtml(display)}</td></tr>`;
+    const birthDisplay=source==="CARD" && String(row.BIRTH2??"").trim() ? String(row.BIRTH2??"").trim() : String(row.BIRTH??"").trim();
+    const birthTitle=source==="CARD" && String(row.BIRTH2??"").trim() ? `BIRTH2：${birthDisplay}` : `BIRTH：${birthDisplay}`;
+    return `<tr data-temp-index="${index}" class="${index===tempQueryActiveIndex?'active':''}" tabindex="-1"><td title="${escapeHtml(row.NAME)}">${escapeHtml(row.NAME)}</td><td title="${escapeHtml(birthTitle)}">${escapeHtml(birthDisplay)}</td><td title="${escapeHtml(row.ID)}">${escapeHtml(row.ID)}</td><td title="${escapeHtml(title)}">${escapeHtml(display)}</td></tr>`;
   }).join("");
   $("tempSelectBtn").disabled=false;
   body.querySelectorAll("tr[data-temp-index]").forEach(tr=>{
@@ -3924,7 +4131,7 @@ async function ensurePatdbDatabaseForTempLink(){
 
   const source=await getPatdbDbFromRememberedDirectory(true);
   if(!source){
-    throw new Error("PathHTML 內找不到可讀取的 PATDB.DB，請先執行 HIS同步");
+    throw new Error("PathHTML 內找不到可讀取的 PATDB.DB，請先執行 HIS更新");
   }
   const loaded=await loadPatdbQueryDatabase(source);
   if(!loaded || !patdbQueryDatabase) throw new Error("PATDB.DB 讀取失敗");
@@ -3957,13 +4164,11 @@ function applyTempRecord(record,patdbAddress=""){
   $("childName").value=String(record.NAME??"").trim();
   $("idNo").value=normalizeTaiwanId(record.ID);
   const source=String(record.WAITSOURCE??"").trim().toUpperCase();
-  const gp=String(record.GP??"").trim();
   const birth=String(record.BIRTH??"").trim();
   const birth2=String(record.BIRTH2??"").trim();
-  const gpSecond=gp.length>=2 ? gp.charAt(1) : "";
-  // INSNO 優先資料：GP 第二碼 + BIRTH。
-  // CARD 資料：直接使用 BIRTH2。
-  $("birthDate").value=source==="CARD" ? birth2 : `${gpSecond}${birth}`;
+  // v160：DBF 轉 SQLite 時 BIRTH 已建立為完整民國 7 碼；耀聖候診帶入仍依需求優先使用 BIRTH2。
+  const tempBirthValue=(source==="CARD" && birth2) ? birth2 : birth;
+  $("birthDate").value=tempBirthValue;
   $("phone").value=String(record.TEL??"").trim();
 
   const sex=String(record.SEX??"").trim();
@@ -4053,14 +4258,8 @@ async function runTempUpdate(){
   setStatus(`更新：正在依序檢查 ${tempSourceCandidates.join("、")}。`,false);
 
   try{
-    let source=null;
-    try{
-      source=await selectTempSource();
-    }catch(sourceErr){
-      if(sourceErr && sourceErr.name==="AbortError") throw sourceErr;
-      console.warn("PathTemp 候診來源讀取失敗，嘗試改用 PathHTML TEMP.DBF",sourceErr);
-      source=await selectTempSourceFromHtmlFallback(sourceErr);
-    }
+    assertSupportedHisVendor();
+    let source=await selectTempSource();
 
     if(!source){
       setTempProgress(0,"已取消");
@@ -4095,7 +4294,9 @@ async function runTempUpdate(){
       setTempProgress(20,`${source.file.name} 已覆蓋複製為 PathHTML\\TEMP.DBF`);
     }
 
-    const parsed=parseDbfArrayBuffer(await copied.file.arrayBuffer(),"TEMP.DBF",{includeDeletedRecords:true});
+    assertSupportedHisVendor();
+    const rawParsed=parseDbfArrayBuffer(await copied.file.arrayBuffer(),"TEMP.DBF",{includeDeletedRecords:true});
+    const parsed=prepareHisDbfParsed(rawParsed,currentHisName());
     setTempProgress(32,`DBF 解析完成：${parsed.rows.length.toLocaleString()} 筆紀錄（含 deleted）`);
     setTempMessage([
       source.sourceMode==="pathHtmlFallback"
@@ -4108,13 +4309,15 @@ async function runTempUpdate(){
       `匯入紀錄：${parsed.rows.length.toLocaleString()}（包含刪除標記）`,
       `deleted=1：${parsed.deletedCount.toLocaleString()}`,
       "字元欄位維持 TEXT，不自動轉為數字；數值空白寫入 NULL。",
+      `HIS廠商：${currentHisName()}`,
+      "生日欄位：BIRTH_RAW／BIRTH／BIRTH_DATE；並建立 NAME／ID／TEL／BIRTH／BIRTH_DATE 索引。",
       "正在建立 TEMP.DB…"
     ].filter(Boolean).join("\n"));
 
     const sqliteBytes=await buildSqliteDatabase(parsed,(done,total)=>{
       const ratio=total?done/total:1;
       setTempProgress(32+Math.round(ratio*50),`正在寫入 SQLite：${done.toLocaleString()} / ${total.toLocaleString()} 筆`);
-    },"TEMP",144,{includeDeletedColumn:true});
+    },"TEMP",160,{includeDeletedColumn:true,createHisIndexes:true});
 
     setTempProgress(86,"正在 PathHTML 儲存 TEMP.DB…");
     const result=await writeTempDatabase(sqliteBytes,source.htmlDirectoryHandle);
@@ -4149,9 +4352,9 @@ async function runTempUpdate(){
       `PathHTML 資料庫：${result.location}`,
       `TEMP.DB 全部匯入：${parsed.rows.length.toLocaleString()} 筆（deleted=1：${parsed.deletedCount.toLocaleString()}）`,
       `其中可帶入的 IC 候診資料：${tempQueryRows.length.toLocaleString()} 筆`,
-      tempQueryRows.length?"請用滑鼠選擇，或按上下方向鍵後按 Enter 帶入；INSNO 符合時優先使用，清單顯示 BIRTH，生日以 GP 第二碼+BIRTH 帶入；否則 CARD 清單顯示 BIRTH2，生日直接帶入 BIRTH2；地址由 PATDB.DB 同 ID 的 ADDR 帶入。":"TEMP.DB 目前沒有 INSNO 或 CARD 前四碼為 IC71～IC79 的資料。"
+      tempQueryRows.length?(isLiouHis()?"請選擇資料後按 Enter 帶入；劉氏以 INSNO 前4碼篩選，生日帶入完整 BIRTH；地址由 PATDB.DB 同 ID 的 ADDR 帶入。":"請選擇資料後按 Enter 帶入；耀聖以 CARD 前4碼篩選，生日優先帶入 BIRTH2；地址由 PATDB.DB 同 ID 的 ADDR 帶入。 "):"TEMP.DB 目前沒有符合 IC71～IC79 的候診資料。"
     ].filter(Boolean).join("\n"),"success");
-    setStatus(`候診資料更新完成：共列出 ${tempQueryRows.length.toLocaleString()} 筆 INSNO 或 CARD 前四碼為 IC71～IC79 的資料。`,false);
+    setStatus(`候診同步完成：${currentHisName()} 共列出 ${tempQueryRows.length.toLocaleString()} 筆 IC71～IC79 候診資料。`,false);
   }catch(err){
     if(err && err.name==="AbortError"){
       setTempProgress(0,"已取消");
@@ -4266,51 +4469,43 @@ function resolvePatdbColumns(db){
   const missing=required.filter(name=>!map.has(name));
   if(missing.length) throw new Error(`PATDB 資料表缺少欄位：${missing.join("、")}`);
   return {
-    NAME:map.get("NAME"),
-    ID:map.get("ID"),
-    BIRTH:map.get("BIRTH"),
-    GP:map.get("GP") || null,
-    CODE:map.get("CODE") || null,
-    SEX:map.get("SEX") || null,
-    TEL:map.get("TEL") || null,
-    ADDR:map.get("ADDR") || null
+    NAME:map.get("NAME"),ID:map.get("ID"),BIRTH:map.get("BIRTH"),
+    BIRTH_RAW:map.get("BIRTH_RAW")||null,BIRTH_DATE:map.get("BIRTH_DATE")||null,
+    GP:map.get("GP")||null,CODE:map.get("CODE")||null,SEX:map.get("SEX")||null,
+    TEL:map.get("TEL")||null,ADDR:map.get("ADDR")||null
   };
 }
 
 async function loadPatdbQueryDatabase(source=null){
   if(patdbQueryBusy) return false;
   patdbQueryBusy=true;
-  setPatdbQueryMessage("正在讀取 PATDB.DB…");
+  setPatdbQueryMessage("");
   setPatdbQuerySourceText("正在載入資料庫…");
   try{
     let selected=source;
     if(!selected) selected=await getPatdbDbFromRememberedDirectory(true);
     if(!selected) selected=await choosePatdbDbSource();
     if(!selected){
-      setPatdbQueryMessage("已取消讀取 PATDB.DB。","");
+      setPatdbQueryMessage("");
       setPatdbQuerySourceText(patdbQuerySourceName || "尚未讀取 PATDB.DB");
       return false;
     }
-    if(String(selected.file.name||"").toUpperCase()!=="PATDB.DB"){
-      throw new Error("請選擇檔名為 PATDB.DB 的 SQLite 資料庫");
-    }
-
+    if(String(selected.file.name||"").toUpperCase()!=="PATDB.DB") throw new Error("請選擇檔名為 PATDB.DB 的 SQLite 資料庫");
     const SQL=await loadSqlJsModule();
     const bytes=new Uint8Array(await selected.file.arrayBuffer());
     const db=new SQL.Database(bytes);
     let columns;
     try{columns=resolvePatdbColumns(db)}catch(err){db.close();throw err}
-
     closePatdbQueryDatabase();
     patdbQueryDatabase=db;
     patdbQueryColumns=columns;
     patdbQuerySourceName=selected.sourceLabel || selected.file.name;
     setPatdbQuerySourceText(`${patdbQuerySourceName}（${(selected.file.size/1024/1024).toFixed(2)} MB）`);
-    setPatdbQueryMessage("PATDB.DB 已讀取。請輸入查詢條件。","success");
+    setPatdbQueryMessage("");
     return true;
   }catch(err){
     if(err && err.name==="AbortError"){
-      setPatdbQueryMessage("已取消讀取 PATDB.DB。","");
+      setPatdbQueryMessage("");
       setPatdbQuerySourceText(patdbQuerySourceName || "尚未讀取 PATDB.DB");
       return false;
     }
@@ -4319,252 +4514,129 @@ async function loadPatdbQueryDatabase(source=null){
     setPatdbQueryMessage(`PATDB.DB 讀取失敗：${message}`,"error");
     setPatdbQuerySourceText("PATDB.DB 讀取失敗");
     return false;
-  }finally{
-    patdbQueryBusy=false;
-  }
-}
-
-function normalizePatdbBirthInput(value){
-  const raw=String(value||"").trim();
-  if(!raw) return "";
-
-  let digits=raw.replace(/\D/g,"");
-
-  // 保留舊版對西元 8 位日期的相容性：先換算為 7 位民國日期，再套用 v91 規則。
-  if(digits.length===8){
-    const date=parseDate(raw);
-    if(!date) throw new Error("生日格式錯誤，請輸入有效日期");
-    const rocYear=String(date.getFullYear()-1911).padStart(3,"0");
-    digits=`${rocYear}${pad2(date.getMonth()+1)}${pad2(date.getDate())}`;
-  }
-
-  if(digits.length!==6 && digits.length!==7){
-    throw new Error("生日格式錯誤，民國日期須為 6 位或 7 位數");
-  }
-
-  // 驗證年月日是否為有效日期；6 位視為民國 2 位年，7 位視為民國 3 位年。
-  if(!parseDate(digits)) throw new Error("生日格式錯誤，請輸入有效的民國日期");
-  return digits;
-}
-
-function encodePatdbBirthYearPrefix(rocDate7){
-  const digits=String(rocDate7||"").replace(/\D/g,"");
-  if(digits.length!==7) return "";
-  const firstTwo=Number(digits.slice(0,2));
-  // 10→A、11→B、12→C，以此類推至 35→Z。
-  if(!Number.isInteger(firstTwo) || firstTwo<10 || firstTwo>35) return "";
-  return `${String.fromCharCode(65+(firstTwo-10))}${digits.slice(2)}`;
-}
-
-function patdbDateSearchPlan(value){
-  const digits=normalizePatdbBirthInput(value);
-  if(!digits) return null;
-
-  if(digits.length===6){
-    return {
-      inputDigits:digits,
-      primaryBirth:digits,
-      primaryApplyMode:"birth",
-      fallbackBirth:"",
-      fallbackApplyMode:""
-    };
-  }
-
-  return {
-    inputDigits:digits,
-    primaryBirth:digits.slice(-6),
-    primaryApplyMode:"prefix1",
-    fallbackBirth:encodePatdbBirthYearPrefix(digits),
-    fallbackApplyMode:"input"
-  };
-}
-
-function patdbBirthSixDigits(value){
-  return String(value??"").replace(/\D/g,"").slice(-6);
-}
-
-function patdbBirthToRocInput(value){
-  const birth=patdbBirthSixDigits(value);
-  return birth ? `1${birth}` : "";
-}
-
-function decodePatdbLetterBirth(value){
-  const birth=String(value??"").trim().toUpperCase();
-  if(!/^[A-Z]/.test(birth)) return "";
-  const prefix=10+(birth.charCodeAt(0)-65);
-  return `${prefix}${birth.slice(1)}`;
-}
-
-function patdbBirthForIdOrNameQuery(record){
-  const birth=String(record?.BIRTH??"").trim();
-  const gp=String(record?.GP??"").trim();
-  const gpSecond=gp.charAt(1);
-
-  // GP 第二碼為 1 或 2 時，以該碼作為民國年百位數前綴。
-  if(gpSecond==="1" || gpSecond==="2") return `${gpSecond}${birth}`;
-
-  // 其餘若 BIRTH 首碼為英文字母：A→10、B→11、C→12，依此類推。
-  const decoded=decodePatdbLetterBirth(birth);
-  if(decoded) return decoded;
-
-  return birth;
+  }finally{patdbQueryBusy=false}
 }
 
 function normalizedBirthSql(column){
   const q=quoteSqlIdentifier(column);
   return `UPPER(REPLACE(REPLACE(REPLACE(REPLACE(TRIM(CAST(${q} AS TEXT)),'/',''),'-',''),'.',''),' ',''))`;
 }
+function escapeSqlLike(value){return String(value).replace(/[\\%_]/g,match=>`\\${match}`)}
+function normalizePhoneQuery(value){return String(value??"").replace(/[\s\-()]/g,"").trim()}
+function normalizedPhoneSql(column){
+  const q=quoteSqlIdentifier(column);
+  return `REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(TRIM(CAST(${q} AS TEXT)),' ',''),'-',''),'(',''),')',''),'　','')`;
+}
 
-function escapeSqlLike(value){
-  return String(value).replace(/[\\%_]/g,match=>`\\${match}`);
+function normalizeFlexibleBirthQuery(value){
+  const raw=String(value||"").trim();
+  if(!raw) return null;
+  const digits=raw.replace(/\D/g,"");
+  if(!digits) throw new Error("生日格式錯誤");
+  const isGregorian=[4,6,8].includes(digits.length) && Number(digits.slice(0,4))>=1912;
+  let rocPrefix="",gregPrefix="",rawPrefix=digits;
+  if(isGregorian){
+    const year=Number(digits.slice(0,4));
+    const rest=digits.slice(4);
+    if(year<1912 || year>2200) throw new Error("西元年份格式錯誤");
+    if(rest.length>=2){const m=Number(rest.slice(0,2));if(m<1||m>12) throw new Error("月份格式錯誤")}
+    if(rest.length===4){
+      const m=Number(rest.slice(0,2)),d=Number(rest.slice(2,4));
+      const test=new Date(Date.UTC(year,m-1,d));
+      if(test.getUTCFullYear()!==year||test.getUTCMonth()!==m-1||test.getUTCDate()!==d) throw new Error("日期格式錯誤");
+    }
+    gregPrefix=digits;
+    rocPrefix=`${String(year-1911).padStart(3,"0")}${rest}`;
+  }else{
+    if(![2,3,4,5,6,7].includes(digits.length)) throw new Error("民國生日可輸入 2/3 位年、4/5 位年月或 6/7 位年月日");
+    const yearDigits=(digits.length===2||digits.length===4||digits.length===6)?2:3;
+    const shortRocYear=yearDigits===2;
+    const inputYear=Number(digits.slice(0,yearDigits));
+    // v160：兩位民國年視為 1xx 年的簡寫，例如 15→115、1507→11507、150711→1150711。
+    const year=shortRocYear ? 100+inputYear : inputYear;
+    const rest=digits.slice(yearDigits);
+    const rocYear=String(year).padStart(3,"0");
+    if(rest.length>=2){const m=Number(rest.slice(0,2));if(m<1||m>12) throw new Error("月份格式錯誤")}
+    const gregYear=year+1911;
+    if(rest.length===4){
+      const m=Number(rest.slice(0,2)),d=Number(rest.slice(2,4));
+      const test=new Date(Date.UTC(gregYear,m-1,d));
+      if(test.getUTCFullYear()!==gregYear||test.getUTCMonth()!==m-1||test.getUTCDate()!==d) throw new Error("日期格式錯誤");
+    }
+    rocPrefix=`${rocYear}${rest}`;
+    gregPrefix=`${String(gregYear).padStart(4,"0")}${rest}`;
+  }
+  return {rawPrefix,rocPrefix,gregPrefix,isGregorian};
 }
 
 function currentPatdbQuerySignature(){
   return JSON.stringify([
     $("patdbQueryBirth")?.value.trim() || "",
     normalizeTaiwanId($("patdbQueryId")?.value || ""),
-    $("patdbQueryName")?.value.trim() || ""
+    $("patdbQueryName")?.value.trim() || "",
+    normalizePhoneQuery($("patdbQueryPhone")?.value || "")
   ]);
 }
 
 function executePatdbSearch(){
-  if(!patdbQueryDatabase || !patdbQueryColumns){
-    setPatdbQueryMessage("尚未讀取 PATDB.DB。","error");
-    return;
-  }
-
+  if(!patdbQueryDatabase || !patdbQueryColumns){setPatdbQueryMessage("尚未讀取 PATDB.DB。","error");return}
   const birthInput=$("patdbQueryBirth").value.trim();
   const idInput=normalizeTaiwanId($("patdbQueryId").value);
   const nameInput=$("patdbQueryName").value.trim();
+  const phoneInput=normalizePhoneQuery($("patdbQueryPhone")?.value || "");
   $("patdbQueryId").value=idInput;
-
-  if(!birthInput && !idInput && !nameInput){
+  if($("patdbQueryPhone")) $("patdbQueryPhone").value=phoneInput;
+  if(!birthInput && !idInput && !nameInput && !phoneInput){
     renderPatdbQueryResults([],"請至少輸入一項查詢條件。");
-    setPatdbQueryMessage("請至少輸入生日、身分證字號或姓名其中一項。","error");
-    return;
+    setPatdbQueryMessage("請至少輸入生日、身份證字號、姓名或聯絡電話其中一項。","error");return;
   }
-
+  if(phoneInput && !patdbQueryColumns.TEL){
+    renderPatdbQueryResults([],"PATDB 資料表沒有 TEL 欄位。");
+    setPatdbQueryMessage("PATDB 資料表沒有 TEL（聯絡電話）欄位。","error");return;
+  }
   try{
     const c=patdbQueryColumns;
     const selectFields=[
-      `${quoteSqlIdentifier(c.NAME)} AS NAME`,
-      `${quoteSqlIdentifier(c.ID)} AS ID`,
-      `${quoteSqlIdentifier(c.BIRTH)} AS BIRTH`,
-      c.GP ? `${quoteSqlIdentifier(c.GP)} AS GP` : `'' AS GP`,
-      c.SEX ? `${quoteSqlIdentifier(c.SEX)} AS SEX` : `'' AS SEX`,
-      c.TEL ? `${quoteSqlIdentifier(c.TEL)} AS TEL` : `'' AS TEL`,
-      c.ADDR ? `${quoteSqlIdentifier(c.ADDR)} AS ADDR` : `'' AS ADDR`
+      `${quoteSqlIdentifier(c.NAME)} AS NAME`,`${quoteSqlIdentifier(c.ID)} AS ID`,`${quoteSqlIdentifier(c.BIRTH)} AS BIRTH`,
+      c.BIRTH_RAW?`${quoteSqlIdentifier(c.BIRTH_RAW)} AS BIRTH_RAW`:`'' AS BIRTH_RAW`,
+      c.BIRTH_DATE?`${quoteSqlIdentifier(c.BIRTH_DATE)} AS BIRTH_DATE`:`'' AS BIRTH_DATE`,
+      c.SEX?`${quoteSqlIdentifier(c.SEX)} AS SEX`:`'' AS SEX`,c.TEL?`${quoteSqlIdentifier(c.TEL)} AS TEL`:`'' AS TEL`,
+      c.ADDR?`${quoteSqlIdentifier(c.ADDR)} AS ADDR`:`'' AS ADDR`
     ];
-    const birthPlan=birthInput ? patdbDateSearchPlan(birthInput) : null;
-
-    const runSearch=birthValue=>{
-      const where=[];
-      const params=[];
-
-      if(birthValue){
-        where.push(`${normalizedBirthSql(c.BIRTH)} = ?`);
-        params.push(String(birthValue).toUpperCase());
-      }
-      if(idInput){
-        const q=quoteSqlIdentifier(c.ID);
-        if(idInput.length===10){
-          where.push(`UPPER(TRIM(CAST(${q} AS TEXT))) = ?`);
-          params.push(idInput);
-        }else{
-          where.push(`UPPER(TRIM(CAST(${q} AS TEXT))) LIKE ? ESCAPE '\\'`);
-          params.push(`%${escapeSqlLike(idInput)}%`);
-        }
-      }
-      if(nameInput){
-        where.push(`TRIM(CAST(${quoteSqlIdentifier(c.NAME)} AS TEXT)) LIKE ? ESCAPE '\\'`);
-        params.push(`%${escapeSqlLike(nameInput)}%`);
-      }
-
-      const sql=`SELECT ${selectFields.join(',')} FROM ${quoteSqlIdentifier("PATDB")} WHERE ${where.join(' AND ')} ORDER BY ${quoteSqlIdentifier(c.NAME)},${quoteSqlIdentifier(c.ID)} LIMIT 300`;
-      const stmt=patdbQueryDatabase.prepare(sql);
-      const rows=[];
-      try{
-        stmt.bind(params);
-        while(stmt.step()) rows.push(stmt.getAsObject());
-      }finally{stmt.free()}
-      return rows;
-    };
-
-    let rows=[];
-    let applyMode="default";
-    let usedBirth="";
-
-    if(birthPlan){
-      usedBirth=birthPlan.primaryBirth;
-      applyMode=birthPlan.primaryApplyMode;
-      rows=runSearch(birthPlan.primaryBirth);
-
-      // 7 位民國日期：後 6 位查無資料時，再以 10→A、11→B、12→C… 編碼查詢。
-      if(!rows.length && birthPlan.fallbackBirth){
-        usedBirth=birthPlan.fallbackBirth;
-        applyMode=birthPlan.fallbackApplyMode;
-        rows=runSearch(birthPlan.fallbackBirth);
-      }
-    }else{
-      rows=runSearch("");
+    const where=[],params=[];
+    if(birthInput){
+      const plan=normalizeFlexibleBirthQuery(birthInput);
+      const birthOr=[];
+      birthOr.push(`${normalizedBirthSql(c.BIRTH)} LIKE ? ESCAPE '\\'`); params.push(`${escapeSqlLike(plan.rocPrefix)}%`);
+      if(c.BIRTH_RAW){birthOr.push(`${normalizedBirthSql(c.BIRTH_RAW)} LIKE ? ESCAPE '\\'`);params.push(`${escapeSqlLike(plan.rawPrefix)}%`)}
+      if(c.BIRTH_DATE){birthOr.push(`${normalizedBirthSql(c.BIRTH_DATE)} LIKE ? ESCAPE '\\'`);params.push(`${escapeSqlLike(plan.gregPrefix)}%`)}
+      where.push(`(${birthOr.join(" OR ")})`);
     }
-
-    rows.forEach(row=>{
-      const dbBirth=String(row.BIRTH??"").trim();
-      if(!birthPlan){
-        // v92：以身分證字號或姓名查詢時，依 GP 第二碼與 BIRTH 首碼決定帶入值。
-        row.__birthApplyValue=(idInput || nameInput)
-          ? patdbBirthForIdOrNameQuery(row)
-          : patdbBirthToRocInput(dbBirth);
-      }else if(applyMode==="birth"){
-        // 6 位輸入：直接帶入資料庫 BIRTH。
-        row.__birthApplyValue=dbBirth;
-      }else if(applyMode==="prefix1"){
-        // 7 位輸入且後 6 位命中：在 BIRTH 前加 1。
-        row.__birthApplyValue=`1${dbBirth}`;
-      }else if(applyMode==="input"){
-        // 年份字母編碼命中：帶入原始 7 位民國日期。
-        row.__birthApplyValue=birthPlan.inputDigits;
-      }else{
-        row.__birthApplyValue=patdbBirthToRocInput(dbBirth);
-      }
-      row.__birthSearchValue=usedBirth;
-    });
-
-    patdbQueryRows=rows;
-    patdbQueryActiveIndex=rows.length ? 0 : -1;
-    patdbLastQuerySignature=currentPatdbQuerySignature();
+    if(idInput){
+      const q=quoteSqlIdentifier(c.ID);
+      if(idInput.length===10){where.push(`UPPER(TRIM(CAST(${q} AS TEXT))) = ?`);params.push(idInput)}
+      else{where.push(`UPPER(TRIM(CAST(${q} AS TEXT))) LIKE ? ESCAPE '\\'`);params.push(`%${escapeSqlLike(idInput)}%`)}
+    }
+    if(nameInput){where.push(`TRIM(CAST(${quoteSqlIdentifier(c.NAME)} AS TEXT)) LIKE ? ESCAPE '\\'`);params.push(`%${escapeSqlLike(nameInput)}%`)}
+    if(phoneInput){where.push(`${normalizedPhoneSql(c.TEL)} LIKE ? ESCAPE '\\'`);params.push(`%${escapeSqlLike(phoneInput)}%`)}
+    const sql=`SELECT ${selectFields.join(",")} FROM ${quoteSqlIdentifier("PATDB")} WHERE ${where.join(" AND ")} ORDER BY ${quoteSqlIdentifier(c.NAME)},${quoteSqlIdentifier(c.ID)} LIMIT 300`;
+    const stmt=patdbQueryDatabase.prepare(sql);const rows=[];
+    try{stmt.bind(params);while(stmt.step()) rows.push(stmt.getAsObject())}finally{stmt.free()}
+    rows.forEach(row=>row.__birthApplyValue=String(row.BIRTH??"").trim());
+    patdbQueryRows=rows;patdbQueryActiveIndex=rows.length?0:-1;patdbLastQuerySignature=currentPatdbQuerySignature();
     renderPatdbQueryResults(rows);
-    if(rows.length){
-      let detail="";
-      if(birthPlan && birthPlan.inputDigits.length===7){
-        detail=applyMode==="input"
-          ? `（後 6 位查無資料，已改用 ${birthPlan.fallbackBirth} 查詢）`
-          : `（以後 6 位 ${birthPlan.primaryBirth} 查詢）`;
-      }
-      setPatdbQueryMessage(`找到 ${rows.length.toLocaleString()} 筆符合資料${rows.length===300 ? "（最多顯示 300 筆）" : ""}${detail}。按 Enter 選定。`,"success");
-    }else{
-      const fallbackNote=birthPlan && birthPlan.fallbackBirth
-        ? `；已依序查詢 ${birthPlan.primaryBirth} 與 ${birthPlan.fallbackBirth}`
-        : "";
-      setPatdbQueryMessage(`查無符合資料${fallbackNote}。`,"");
-    }
+    setPatdbQueryMessage(rows.length?`找到 ${rows.length.toLocaleString()} 筆符合資料${rows.length===300?"（最多顯示 300 筆）":""}。按 Enter 選定。`:`查無符合資料。`,rows.length?"success":"");
   }catch(err){
-    console.error("PATDB 查詢失敗",err);
-    const message=err && err.message ? err.message : String(err);
-    patdbQueryRows=[];
-    patdbQueryActiveIndex=-1;
-    renderPatdbQueryResults([],"查詢失敗。");
-    setPatdbQueryMessage(`查詢失敗：${message}`,"error");
+    console.error("PATDB 查詢失敗",err);const message=err?.message||String(err);
+    patdbQueryRows=[];patdbQueryActiveIndex=-1;renderPatdbQueryResults([],"查詢失敗。");setPatdbQueryMessage(`查詢失敗：${message}`,"error");
   }
 }
 
 function formatPatdbBirth(value,preferredInput=""){
-  const rocInput=String(preferredInput||"").trim() || patdbBirthToRocInput(value);
-  if(!rocInput) return "";
-  const date=parseDate(rocInput);
-  if(!date) return String(value??"").trim();
-  return `${date.getFullYear()-1911}/${pad2(date.getMonth()+1)}/${pad2(date.getDate())}`;
+  const text=String(preferredInput||value||"").trim();
+  const digits=text.replace(/\D/g,"");
+  if(digits.length===7) return `${digits.slice(0,3)}/${digits.slice(3,5)}/${digits.slice(5,7)}`;
+  return text;
 }
 
 function escapeHtml(value){
@@ -4581,11 +4653,11 @@ function renderPatdbQueryResults(rows,emptyText="查無符合資料。"){
   const selectBtn=$("patdbQuerySelectBtn");
   if(!body) return;
   if(!Array.isArray(rows) || !rows.length){
-    body.innerHTML=`<tr><td colspan="3" class="patdb-results-empty">${escapeHtml(emptyText)}</td></tr>`;
+    body.innerHTML=`<tr><td colspan="4" class="patdb-results-empty">${escapeHtml(emptyText)}</td></tr>`;
     if(selectBtn) selectBtn.disabled=true;
     return;
   }
-  body.innerHTML=rows.map((row,index)=>`<tr data-patdb-index="${index}" class="${index===patdbQueryActiveIndex?'active':''}" tabindex="-1"><td title="${escapeHtml(row.NAME)}">${escapeHtml(row.NAME)}</td><td title="${escapeHtml(row.ID)}">${escapeHtml(row.ID)}</td><td title="${escapeHtml(row.BIRTH)}">${escapeHtml(formatPatdbBirth(row.BIRTH,row.__birthApplyValue))}</td></tr>`).join("");
+  body.innerHTML=rows.map((row,index)=>`<tr data-patdb-index="${index}" class="${index===patdbQueryActiveIndex?'active':''}" tabindex="-1"><td title="${escapeHtml(row.NAME)}">${escapeHtml(row.NAME)}</td><td title="${escapeHtml(row.BIRTH)}">${escapeHtml(row.BIRTH)}</td><td title="${escapeHtml(row.ID)}">${escapeHtml(row.ID)}</td><td title="${escapeHtml(row.TEL)}">${escapeHtml(row.TEL)}</td></tr>`).join("");
   if(selectBtn) selectBtn.disabled=false;
   body.querySelectorAll("tr[data-patdb-index]").forEach(tr=>{
     tr.addEventListener("click",()=>setPatdbQueryActiveIndex(Number(tr.dataset.patdbIndex),false));
@@ -4610,7 +4682,7 @@ function applyPatdbRecord(record){
   $("childName").value=String(record.NAME??"").trim();
   $("idNo").value=normalizeTaiwanId(record.ID);
   // v92：生日查詢依命中方式帶入；身分證／姓名查詢依 GP 與 BIRTH 規則帶入。
-  $("birthDate").value=String(record.__birthApplyValue || patdbBirthForIdOrNameQuery(record)).trim();
+  $("birthDate").value=String(record.BIRTH??record.__birthApplyValue??"").trim();
   $("phone").value=String(record.TEL??"").trim();
 
   const sex=String(record.SEX??"").trim();
@@ -4653,7 +4725,7 @@ async function openPatdbQueryDialog(){
     await loadPatdbQueryDatabase();
   }else{
     setPatdbQuerySourceText(patdbQuerySourceName);
-    setPatdbQueryMessage("PATDB.DB 已讀取。請輸入查詢條件。","success");
+    setPatdbQueryMessage("");
   }
   window.setTimeout(()=>$("patdbQueryBirth")?.focus(),0);
 }
@@ -4668,11 +4740,12 @@ function clearPatdbQueryCriteria(){
   $("patdbQueryBirth").value="";
   $("patdbQueryId").value="";
   $("patdbQueryName").value="";
+  if($("patdbQueryPhone")) $("patdbQueryPhone").value="";
   patdbQueryRows=[];
   patdbQueryActiveIndex=-1;
   patdbLastQuerySignature="";
   renderPatdbQueryResults([],"請輸入條件後搜尋。");
-  setPatdbQueryMessage(patdbQueryDatabase ? "查詢條件已清除。" : "尚未讀取 PATDB.DB。","");
+  setPatdbQueryMessage(patdbQueryDatabase ? "" : "尚未讀取 PATDB.DB。","");
   $("patdbQueryBirth").focus();
 }
 
@@ -4827,7 +4900,7 @@ function firstRecord(data){
 
 async function loadReferenceData(){
   const [externalOpd,externalCard,externalExam,externalScaleMale,externalScaleFemale]=await Promise.all([
-    loadJson("MyOPDSET.json"),
+    loadConfiguredJson("MyOPDSET.json").then(x=>x||loadJson("MyOPDSET.json")),
     loadJson("MyCardNo.json").then(x=>x||loadJson("NyCardNo.json")),
     loadJson("MyCHExam.json").then(x=>x||loadJson("MyCHExam(1).json")),
     loadJson("ScaleMale.json"),
@@ -4966,56 +5039,119 @@ function bindAutoSave(){
 
 
 
-const PATH_SETTINGS_STORAGE_KEY="MyPathSET";
+const PATH_SETTINGS_STORAGE_KEY="MyCHPathSET";
+const PATH_SETTINGS_COMPLETED_KEY="MyCHPathSETCompleted";
+const PATH_SETTINGS_FILE_NAME="MyCHPathSET.json";
+let pathSettingsLoadedAtStartup=false;
+let pathSettingsStartupSource="";
+
+// v160：HTML 直接以原始所在位置執行，不建立或改由 AppData 暫存目錄的 file:// 副本載入。
+function detectHtmlSameDirectoryPath(){
+  try{
+    if(location.protocol==="file:"){
+      let path=decodeURIComponent(location.pathname || "").replace(/\//g,"\\");
+      if(/^\\[A-Za-z]:\\/.test(path)) path=path.slice(1);
+      const slash=path.lastIndexOf("\\");
+      if(slash>0) return path.slice(0,slash);
+    }
+  }catch(_err){}
+  return ".";
+}
+function joinWindowsPath(base,leaf){
+  const b=String(base||"").trim().replace(/\//g,"\\").replace(/[\\]+$/g,"");
+  const l=String(leaf||"").trim().replace(/^[\\/]+/g,"");
+  if(!b || b===".") return `.\\${l}`;
+  return `${b}\\${l}`;
+}
+const HTML_SAME_DIRECTORY_PATH=detectHtmlSameDirectoryPath();
 const DEFAULT_PATH_SETTINGS=Object.freeze({
-  PathHTML:"D:\\",
-  PathPatdb:"F:\\S",
-  PathTemp:"F:\\Z",
-  PathAPI:"L:\\02_nnWork\\PyBank\\00Working"
+  PathHTML:HTML_SAME_DIRECTORY_PATH,
+  PathAPI:joinWindowsPath(HTML_SAME_DIRECTORY_PATH,"Chart"),
+  HISNAM:"劉氏",
+  HISDRV:"Z",
+  PathPatdb:"Z:\\S",
+  PathTemp:"Z:\\Z"
 });
 let currentPathSettings={...DEFAULT_PATH_SETTINGS};
 
+function supportedHisName(value){
+  const name=String(value||"").trim();
+  return name || DEFAULT_PATH_SETTINGS.HISNAM;
+}
+function hisDriveLetter(value,pathPatdb=""){
+  const direct=String(value||"").trim().toUpperCase();
+  if(["Z","F","D","E","G","H"].includes(direct)) return direct;
+  const match=String(pathPatdb||"").trim().match(/^([A-Za-z]):[\\/]/);
+  return match ? match[1].toUpperCase() : DEFAULT_PATH_SETTINGS.HISDRV;
+}
 function normalizePathSettings(input){
   const data=(input && typeof input==="object") ? input : {};
+  const pathHtml=String(data.PathHTML ?? DEFAULT_PATH_SETTINGS.PathHTML).trim() || DEFAULT_PATH_SETTINGS.PathHTML;
+  const hisdrv=hisDriveLetter(data.HISDRV,data.PathPatdb);
+  const defaultPatdb=`${hisdrv}:\\S`;
+  const defaultTemp=`${hisdrv}:\\Z`;
+  const pathApi=String(data.PathAPI ?? data.APIPathHTML ?? data.PathHTML_API ?? "").trim() || joinWindowsPath(pathHtml,"Chart");
   return {
-    PathHTML:String(data.PathHTML ?? DEFAULT_PATH_SETTINGS.PathHTML).trim(),
-    PathPatdb:String(data.PathPatdb ?? DEFAULT_PATH_SETTINGS.PathPatdb).trim(),
-    PathTemp:String(data.PathTemp ?? DEFAULT_PATH_SETTINGS.PathTemp).trim(),
-    // 第4項使用 PathAPI，避免 JSON 內與第1項 PathHTML 產生重複鍵名。
-    PathAPI:String(data.PathAPI ?? data.APIPathHTML ?? data.PathHTML_API ?? DEFAULT_PATH_SETTINGS.PathAPI).trim()
+    PathHTML:pathHtml,
+    PathAPI:pathApi,
+    HISNAM:supportedHisName(data.HISNAM),
+    HISDRV:hisdrv,
+    PathPatdb:String(data.PathPatdb ?? defaultPatdb).trim() || defaultPatdb,
+    PathTemp:String(data.PathTemp ?? defaultTemp).trim() || defaultTemp
   };
+}
+function currentHisName(){return supportedHisName(currentPathSettings?.HISNAM)}
+function isLiouHis(){return currentHisName().startsWith("劉氏")}
+function isYaoshengHis(){return currentHisName().startsWith("耀聖")}
+function assertSupportedHisVendor(){
+  if(isLiouHis() || isYaoshengHis()) return true;
+  throw new Error(`HIS廠商「${currentHisName()}」目前尚未支援`);
 }
 
 function applyPathSettingsToForm(settings){
   const value=normalizePathSettings(settings);
   currentPathSettings=value;
   if($("pathHtmlInput")) $("pathHtmlInput").value=value.PathHTML;
+  if($("pathApiInput")) $("pathApiInput").value=value.PathAPI;
+  if($("hisNameSelect")) $("hisNameSelect").value=value.HISNAM;
+  if($("hisDriveSelect")) $("hisDriveSelect").value=value.HISDRV;
   if($("pathPatdbInput")) $("pathPatdbInput").value=value.PathPatdb;
   if($("pathTempInput")) $("pathTempInput").value=value.PathTemp;
-  if($("pathApiInput")) $("pathApiInput").value=value.PathAPI;
   return value;
 }
-
 function collectPathSettingsFromForm(){
   return normalizePathSettings({
     PathHTML:$("pathHtmlInput")?.value,
+    PathAPI:$("pathApiInput")?.value,
+    HISNAM:$("hisNameSelect")?.value,
+    HISDRV:$("hisDriveSelect")?.value,
     PathPatdb:$("pathPatdbInput")?.value,
-    PathTemp:$("pathTempInput")?.value,
-    PathAPI:$("pathApiInput")?.value
+    PathTemp:$("pathTempInput")?.value
   });
+}
+function syncHisDrivePaths(){
+  const drive=hisDriveLetter($("hisDriveSelect")?.value);
+  if($("pathPatdbInput")) $("pathPatdbInput").value=`${drive}:\\S`;
+  if($("pathTempInput")) $("pathTempInput").value=`${drive}:\\Z`;
 }
 
 function rememberPathSettingsLocal(settings){
   const value=normalizePathSettings(settings);
   currentPathSettings=value;
-  try{
-    localStorage.setItem(PATH_SETTINGS_STORAGE_KEY,JSON.stringify(value));
-  }catch(err){
-    console.warn("MyPathSET 瀏覽器記錄失敗",err);
-  }
+  try{localStorage.setItem(PATH_SETTINGS_STORAGE_KEY,JSON.stringify(value))}
+  catch(err){console.warn("MyCHPathSET 瀏覽器記錄失敗",err)}
   return value;
 }
-
+function setPathSettingsCompleted(completed){
+  try{
+    if(completed) localStorage.setItem(PATH_SETTINGS_COMPLETED_KEY,"1");
+    else localStorage.removeItem(PATH_SETTINGS_COMPLETED_KEY);
+  }catch(err){console.warn("MyCHPathSET 完成狀態記錄失敗",err)}
+}
+function isPathSettingsCompleted(){
+  try{return localStorage.getItem(PATH_SETTINGS_COMPLETED_KEY)==="1"}
+  catch(_err){return false}
+}
 function loadPathSettingsLocal(){
   try{
     const raw=localStorage.getItem(PATH_SETTINGS_STORAGE_KEY);
@@ -5023,31 +5159,86 @@ function loadPathSettingsLocal(){
       const parsed=JSON.parse(raw);
       return applyPathSettingsToForm(parsed);
     }
-  }catch(err){
-    console.warn("MyPathSET 瀏覽器資料讀取失敗",err);
-  }
+  }catch(err){console.warn("MyCHPathSET 瀏覽器資料讀取失敗",err)}
   return applyPathSettingsToForm(DEFAULT_PATH_SETTINGS);
 }
 
-async function tryLoadSameDirectoryPathSettings(){
-  // 透過 localhost／Web Server 執行時，可自動讀取與 HTML 同目錄的 MyPathSET.json。
-  // 直接雙擊 file:// 時瀏覽器通常禁止 fetch，本函式會安靜退回瀏覽器記錄。
-  if(location.protocol==="file:") return false;
+async function loadJsonFromPathHtmlHandle(fileName,requestPermission=false){
   try{
-    const response=await fetch("MyPathSET.json",{cache:"no-store"});
-    if(!response.ok) return false;
-    const parsed=await response.json();
-    const settings=rememberPathSettingsLocal(parsed);
-    applyPathSettingsToForm(settings);
-    return true;
-  }catch(_err){
-    return false;
+    const directory=await loadHisHtmlDirectoryHandle();
+    if(!directory || directory.kind!=="directory") return null;
+    let permission=await directory.queryPermission({mode:"read"});
+    if(permission!=="granted" && requestPermission) permission=await directory.requestPermission({mode:"read"});
+    if(permission!=="granted") return null;
+    const handle=await findFileHandleCaseInsensitive(directory,fileName);
+    if(!handle) return null;
+    const file=await handle.getFile();
+    return JSON.parse(await file.text());
+  }catch(err){
+    console.warn(`從 PathHTML 讀取 ${fileName} 失敗`,err);
+    return null;
   }
 }
+async function tryFetchAdjacentJson(fileName){
+  try{
+    const url=new URL(fileName,location.href);
+    const response=await fetch(url,{cache:"no-store"});
+    if(!response.ok) return null;
+    return await response.json();
+  }catch(_err){return null}
+}
+async function loadConfiguredJson(fileName){
+  // 優先讀取 PathHTML 已授權資料夾；其次讀取真正 HTML 同目錄 URL。
+  // file:// 在標準 Chrome/Edge 若未授權本機資料夾，瀏覽器本身會阻擋自動讀檔，此時不改用 AppData 暫存副本。
+  return (await loadJsonFromPathHtmlHandle(fileName,false)) || (await tryFetchAdjacentJson(fileName));
+}
+async function tryLoadSameDirectoryPathSettings(){
+  // v163：若能直接讀到 PathHTML\MyCHPathSET.json，更新瀏覽器快取並標記為已完成。
+  const parsed=await loadConfiguredJson(PATH_SETTINGS_FILE_NAME);
+  if(parsed){
+    const settings=rememberPathSettingsLocal(parsed);
+    applyPathSettingsToForm(settings);
+    setPathSettingsCompleted(true);
+    pathSettingsLoadedAtStartup=true;
+    pathSettingsStartupSource=PATH_SETTINGS_FILE_NAME;
+    return true;
+  }
 
+  // 舊 MyCDPathSET.json 僅作相容性帶入，不視為 MyCHPathSET.json 已完成。
+  const legacy=await loadConfiguredJson("MyCDPathSET.json");
+  if(legacy){
+    const settings=rememberPathSettingsLocal(legacy);
+    applyPathSettingsToForm(settings);
+    pathSettingsStartupSource="MyCDPathSET.json";
+  }
+  return false;
+}
 async function initializePathSettings(){
-  loadPathSettingsLocal();
-  await tryLoadSameDirectoryPathSettings();
+  pathSettingsLoadedAtStartup=false;
+  pathSettingsStartupSource="";
+
+  // v163：優先恢復瀏覽器內已保存的完整設定。
+  // 只要曾成功把 MyCHPathSET.json 寫入 PathHTML，之後啟動不再要求
+  // 瀏覽器必須立即重新取得該資料夾權限，也不再因此自動開啟路徑設定。
+  let restoredLocal=false;
+  try{
+    const raw=localStorage.getItem(PATH_SETTINGS_STORAGE_KEY);
+    if(raw){
+      applyPathSettingsToForm(JSON.parse(raw));
+      restoredLocal=true;
+      if(isPathSettingsCompleted()){
+        pathSettingsLoadedAtStartup=true;
+        pathSettingsStartupSource="browser-cache:"+PATH_SETTINGS_FILE_NAME;
+        return true;
+      }
+    }
+  }catch(_err){}
+  if(!restoredLocal) applyPathSettingsToForm(DEFAULT_PATH_SETTINGS);
+
+  // 尚未有「已完成」標記時，才嘗試直接讀取 PathHTML 或 HTML 同目錄設定檔。
+  // 讀取成功會建立完成標記；讀不到才需要開啟路徑設定。
+  if(await tryLoadSameDirectoryPathSettings()) return true;
+  return false;
 }
 
 function setPathSettingsMessage(message,isError=false){
@@ -5056,16 +5247,14 @@ function setPathSettingsMessage(message,isError=false){
   el.textContent=message || "";
   el.classList.toggle("error",!!isError);
 }
-
 function closePathSettingsDialog(){
   const overlay=$("pathSettingsOverlay");
   if(overlay) overlay.hidden=true;
   document.body.style.overflow="";
 }
-
 function openPathSettingsDialog(){
   applyPathSettingsToForm(currentPathSettings);
-  setPathSettingsMessage("目前設定已帶入。按「儲存設定」可輸出 MyPathSET.json。",false);
+  setPathSettingsMessage(`目前設定已帶入。按「儲存設定」會寫入 PathHTML\\${PATH_SETTINGS_FILE_NAME}。`,false);
   const overlay=$("pathSettingsOverlay");
   if(overlay) overlay.hidden=false;
   document.body.style.overflow="hidden";
@@ -5150,17 +5339,60 @@ function openDisclaimerDialog(){
   document.body.style.overflow="hidden";
 }
 
-function bestEffortDisplayPath(currentValue,handle){
+function pathLeaf(pathValue){
+  return String(pathValue||"").trim().replace(/\//g,"\\").replace(/[\\]+$/g,"").split("\\").pop() || "";
+}
+
+function hasWindowsAbsolutePath(pathValue){
+  const value=String(pathValue||"").trim().replace(/\//g,"\\");
+  return /^[A-Za-z]:\\(?:.*)?$/.test(value) || /^\\\\[^\\]+\\[^\\]+(?:\\.*)?$/.test(value);
+}
+
+// v154：只接受瀏覽器／桌面殼層真正提供的完整路徑。
+// 標準 Chrome / Edge 的 File System Access API 只提供 handle.name，
+// 不再利用舊欄位、預設磁碟或同名資料夾猜測父路徑，避免顯示錯誤目錄。
+function bestEffortDisplayPath(_currentValue,handle,_kind=""){
   const explicit=String(handle?.path || handle?.fullPath || "").trim();
-  if(explicit) return explicit.replace(/\//g,"\\");
-  const current=String(currentValue||"").trim().replace(/\//g,"\\").replace(/[\\]+$/g,"");
+  if(!explicit) return "";
+  return explicit.replace(/\//g,"\\").replace(/[\\]+$/g,"");
+}
+
+function confirmAbsolutePathForDirectory(_currentValue,handle,_kind){
+  const resolved=bestEffortDisplayPath("",handle,"");
+  if(resolved) return resolved;
+
   const name=String(handle?.name||"").trim();
-  if(!name) return current;
-  const currentLeaf=configuredPathLeaf(current);
-  if(currentLeaf && currentLeaf.toUpperCase()===name.toUpperCase()) return current;
-  const slash=current.lastIndexOf("\\");
-  if(slash>=0) return `${current.slice(0,slash+1)}${name}`;
-  return name;
+  if(!name) return null;
+
+  // 純 HTML 在 Chrome/Edge 中無權取得使用者電腦的完整絕對路徑。
+  // 因此要求使用者確認一次，且末層資料夾名稱必須和剛剛實際選取的 handle.name 相同。
+  while(true){
+    const input=window.prompt(
+      `已實際選擇資料夾：「${name}」\n\n`+
+      `Chrome／Edge 基於安全性不會把完整 Windows 路徑提供給網頁。\n`+
+      `請輸入剛才所選資料夾的完整路徑，例如：F:\\S 或 D:\\Clinic\\Data\n`+
+      `（程式不再自動猜測，以免顯示錯誤路徑）`,
+      ""
+    );
+    if(input===null) return null;
+
+    const value=String(input||"").trim().replace(/\//g,"\\").replace(/[\\]+$/g,"");
+    if(!value){
+      window.alert("請輸入完整 Windows 路徑；若不想變更，請按取消。");
+      continue;
+    }
+    if(!hasWindowsAbsolutePath(value)){
+      window.alert("路徑格式不正確。請輸入完整 Windows 路徑，例如 F:\\S。\n也支援 \\\\Server\\Share\\Folder。")
+      continue;
+    }
+
+    const enteredLeaf=pathLeaf(value);
+    if(enteredLeaf.toUpperCase()!==name.toUpperCase()){
+      window.alert(`輸入路徑最後一層「${enteredLeaf}」與實際選取資料夾「${name}」不同。\n請重新輸入正確路徑。`);
+      continue;
+    }
+    return value;
+  }
 }
 
 async function choosePathDirectory(kind,inputId){
@@ -5173,25 +5405,26 @@ async function choosePathDirectory(kind,inputId){
   try{
     const handle=await window.showDirectoryPicker(options);
     if(!handle) return null;
-    const pathText=bestEffortDisplayPath(input?.value,handle);
+    const pathText=confirmAbsolutePathForDirectory(input?.value,handle,kind);
+    if(pathText===null) return null;
     if(input) input.value=pathText;
 
-    // 立即綁定資料夾控制代碼，後續 HIS同步、更新與說明可直接使用。
+    // v154：選擇資料夾後綁定 FileSystemHandle；路徑文字只使用真正取得或人工確認的完整路徑。
     if(kind==="patdb"){
-      currentPathSettings.PathPatdb=pathText;
+      currentPathSettings={...currentPathSettings,PathPatdb:pathText};
       await rememberHisDirectoryHandle(handle);
     }else if(kind==="temp"){
-      currentPathSettings.PathTemp=pathText;
+      currentPathSettings={...currentPathSettings,PathTemp:pathText};
       await rememberTempDirectoryHandle(handle);
     }else if(kind==="html"){
-      currentPathSettings.PathHTML=pathText;
+      currentPathSettings={...currentPathSettings,PathHTML:pathText};
       await rememberHisHtmlDirectoryHandle(handle);
     }else if(kind==="api"){
-      currentPathSettings.PathAPI=pathText;
+      currentPathSettings={...currentPathSettings,PathAPI:pathText};
       await rememberApiDirectoryHandle(handle);
     }
 
-    setPathSettingsMessage(`已選擇資料夾「${handle.name}」。瀏覽器僅提供資料夾名稱，請確認欄位中的完整 Windows 路徑。`,false);
+    setPathSettingsMessage(`已選擇：${pathText}`,false);
     return handle;
   }catch(err){
     if(err && err.name==="AbortError") return null;
@@ -5205,24 +5438,20 @@ async function exportMyPathSetJson(settings){
   const value=rememberPathSettingsLocal(settings);
   const blob=new Blob([JSON.stringify(value,null,2)],{type:"application/json;charset=utf-8"});
 
-  // 已設定預設資料夾時，直接在該資料夾建立 MyPathSET.json；否則開啟另存新檔。
-  const rememberedDirectory=await ensureRememberedDirectory();
-  if(rememberedDirectory){
-    try{
-      await writeBlobToDirectory(rememberedDirectory,blob,"MyPathSET.json");
-      return true;
-    }catch(err){
-      console.warn("直接寫入 MyPathSET.json 失敗，改用另存新檔",err);
-    }
+  // v160：設定檔固定寫入 PathHTML，不再另存到任意目錄。
+  let pathHtmlDirectory=null;
+  try{pathHtmlDirectory=await loadHisHtmlDirectoryHandle()}catch(_err){}
+  if(!pathHtmlDirectory || !directoryHandleMatchesConfiguredLeaf(pathHtmlDirectory,value.PathHTML)){
+    pathHtmlDirectory=await selectHtmlOutputDirectory();
   }
-
-  return await saveBlobWithPathPicker(
-    blob,
-    "MyPathSET.json",
-    "路徑設定",
-    {"application/json":[".json"]},
-    SHARED_SAVE_PICKER_ID
-  );
+  if(!pathHtmlDirectory) return false;
+  if(!(await verifyDirectoryWritePermission(pathHtmlDirectory))) throw new Error("未取得 PathHTML 資料夾寫入權限");
+  await rememberHisHtmlDirectoryHandle(pathHtmlDirectory);
+  await writeBlobToDirectory(pathHtmlDirectory,blob,PATH_SETTINGS_FILE_NAME);
+  setPathSettingsCompleted(true);
+  pathSettingsLoadedAtStartup=true;
+  pathSettingsStartupSource=PATH_SETTINGS_FILE_NAME;
+  return true;
 }
 
 async function loadPathSettingsFromFile(file){
@@ -5234,11 +5463,12 @@ async function loadPathSettingsFromFile(file){
     setPathSettingsMessage(`已讀取 ${file.name}。`,false);
     return true;
   }catch(err){
-    console.error("MyPathSET.json 讀取失敗",err);
+    console.error("MyCHPathSET.json 讀取失敗",err);
     setPathSettingsMessage("設定檔格式錯誤，無法讀取。",true);
     return false;
   }
 }
+
 
 const FILE_HANDLE_DB="ChildHealthFileHandles";
 const FILE_HANDLE_STORE="handles";
@@ -5390,7 +5620,7 @@ async function showFirstLaunchSavePathSetup(){
   };
 
   // 若已有設定就顯示既有值；全新啟動時使用 v109 指定預設值。
-  pathInput.value=String(currentPathSettings?.PathHTML || "D:\\").trim() || "D:\\";
+  pathInput.value=String(currentPathSettings?.PathHTML || DEFAULT_PATH_SETTINGS.PathHTML).trim() || DEFAULT_PATH_SETTINGS.PathHTML;
   hospitalNameInput.value=$("hospitalName")?.value.trim() || "小兒科診所";
   hospitalIdInput.value=$("hospitalId")?.value.trim() || "351";
   doctorNameInput.value=$("doctorName")?.value.trim() || "劉醫師";
@@ -5425,9 +5655,9 @@ async function showFirstLaunchSavePathSetup(){
       const handle=await window.showDirectoryPicker(options);
       if(!handle) return;
       selectedHandle=handle;
-      pathInput.value=bestEffortDisplayPath(pathInput.value,handle) || handle.name;
+      pathInput.value=confirmAbsolutePathForDirectory(pathInput.value,handle,"html") || pathInput.value;
       folderStatus.textContent=`已選擇資料夾：${handle.name}`;
-      noteEl.textContent="已選擇資料夾。確認院所資料後按「確定設定」。";
+      noteEl.textContent="已選擇資料夾並確認完整路徑。確認院所資料後按「確定設定」。";
       okBtn.disabled=false;
     }catch(err){
       if(err && err.name==="AbortError") return;
@@ -5449,7 +5679,7 @@ async function showFirstLaunchSavePathSetup(){
       return;
     }
     if(!pathValue){
-      noteEl.textContent="請填寫儲存路徑（PathHTML）。";
+      noteEl.textContent="請填寫掛號預設路徑（PathHTML）。";
       noteEl.classList.add("error");
       pathInput.focus();
       return;
@@ -6404,9 +6634,14 @@ function setOpdEditing(editing){
 }
 
 
-const API_SETTINGS_KEY="MyAPISET";
+const API_SETTINGS_KEY="MyCHAPISET";
 const DEFAULT_API_KEY="iisi@89691969";
+const DEFAULT_API_ENDPOINTS={
+  test:"https://60.251.1.235/MedicalRecord_HPA/api/CHMSSForHis/",
+  production:"https://203.65.42.199/MedicalRecord_HPA/api/CHMSSForHis/"
+};
 let apiPasswordValues={test:"",production:""};
+let apiUrlValues={...DEFAULT_API_ENDPOINTS};
 let activeApiPasswordEnvironment="test";
 let apiSettingsEditing=false;
 let apiSettingsEditSnapshot=null;
@@ -6426,6 +6661,22 @@ function storeVisibleApiPassword(){
   apiPasswordValues[activeApiPasswordEnvironment]=input.value || "";
 }
 
+function normalizeApiBaseUrl(value,fallback=""){
+  let text=String(value || fallback || "").trim();
+  if(!text) return "";
+  if(!text.endsWith("/")) text+="/";
+  return text;
+}
+
+function storeVisibleApiUrl(){
+  const input=$("apiUrlInput");
+  if(!input) return;
+  apiUrlValues[activeApiPasswordEnvironment]=normalizeApiBaseUrl(
+    input.value,
+    DEFAULT_API_ENDPOINTS[activeApiPasswordEnvironment]
+  );
+}
+
 function updateApiPasswordCaption(environment=selectedApiEnvironment()){
   const caption=$("apiPasswordCaption");
   if(!caption) return;
@@ -6436,22 +6687,28 @@ function updateApiPasswordCaption(environment=selectedApiEnvironment()){
 
 function switchApiEnvironment(environment,{saveCurrent=true}={}){
   const target=environment==="production" ? "production" : "test";
-  if(saveCurrent) storeVisibleApiPassword();
+  if(saveCurrent){
+    storeVisibleApiPassword();
+    storeVisibleApiUrl();
+  }
   activeApiPasswordEnvironment=target;
   const radio=document.querySelector(`input[name="apiEnvironment"][value="${target}"]`);
   if(radio) radio.checked=true;
   if($("apiPasswordInput")) $("apiPasswordInput").value=apiPasswordValues[target] || "";
+  if($("apiUrlInput")) $("apiUrlInput").value=apiUrlValues[target] || DEFAULT_API_ENDPOINTS[target];
   updateApiPasswordCaption(target);
 }
 
 function resetApiSettingsForm(){
   apiPasswordValues={test:"",production:""};
+  apiUrlValues={...DEFAULT_API_ENDPOINTS};
   activeApiPasswordEnvironment="test";
   const testRadio=document.querySelector('input[name="apiEnvironment"][value="test"]');
   if(testRadio) testRadio.checked=true;
   ["apiAccountInput","apiPasswordInput","thirdIdInput","hospitalIdSettingInput"].forEach(id=>{
     if($(id)) $(id).value="";
   });
+  if($("apiUrlInput")) $("apiUrlInput").value=DEFAULT_API_ENDPOINTS.test;
   if($("apiKeyInput")) $("apiKeyInput").value=DEFAULT_API_KEY;
   updateApiPasswordCaption("test");
   apiSettingsLoadedFromFile=false;
@@ -6459,8 +6716,11 @@ function resetApiSettingsForm(){
 
 function getApiSettings(){
   storeVisibleApiPassword();
+  storeVisibleApiUrl();
   return {
     environment:selectedApiEnvironment(),
+    apiUrl:normalizeApiBaseUrl(apiUrlValues.test,DEFAULT_API_ENDPOINTS.test),
+    apiUrl2:normalizeApiBaseUrl(apiUrlValues.production,DEFAULT_API_ENDPOINTS.production),
     apiKey:$("apiKeyInput")?.value.trim() || "",
     account:$("apiAccountInput")?.value.trim() || "",
     password:apiPasswordValues.test || "",
@@ -6469,6 +6729,12 @@ function getApiSettings(){
     HospitalID:$("hospitalIdSettingInput")?.value.trim() || "",
     updatedAt:new Date().toISOString()
   };
+}
+
+function getActiveApiBaseUrl(settings=getApiSettings()){
+  const environment=settings.environment==="production" ? "production" : "test";
+  const configured=environment==="production" ? settings.apiUrl2 : settings.apiUrl;
+  return normalizeApiBaseUrl(configured,DEFAULT_API_ENDPOINTS[environment]);
 }
 
 function getActiveApiPassword(settings=getApiSettings()){
@@ -6491,6 +6757,8 @@ function applyApiSettings(settings){
   const password=settings.password ?? settings.Password ?? "";
   const password2=settings.password2 ?? settings.Password2 ?? settings.productionPassword ?? "";
   const thirdId=settings.ThirdID ?? settings.thirdId ?? settings.thirdID ?? "";
+  const testApiUrl=settings.apiUrl ?? settings.ApiUrl ?? settings.APIUrl ?? settings.testApiUrl ?? DEFAULT_API_ENDPOINTS.test;
+  const productionApiUrl=settings.apiUrl2 ?? settings.ApiUrl2 ?? settings.APIUrl2 ?? settings.productionApiUrl ?? DEFAULT_API_ENDPOINTS.production;
 
   if($("apiKeyInput")) $("apiKeyInput").value=String(apiKey);
   if($("apiAccountInput")) $("apiAccountInput").value=String(account || "");
@@ -6500,6 +6768,10 @@ function applyApiSettings(settings){
   apiPasswordValues={
     test:String(password),
     production:String(password2)
+  };
+  apiUrlValues={
+    test:normalizeApiBaseUrl(testApiUrl,DEFAULT_API_ENDPOINTS.test),
+    production:normalizeApiBaseUrl(productionApiUrl,DEFAULT_API_ENDPOINTS.production)
   };
   activeApiPasswordEnvironment=environment;
   switchApiEnvironment(environment,{saveCurrent:false});
@@ -6511,7 +6783,7 @@ function saveApiSettingsLocal(settings=getApiSettings()){
     localStorage.setItem(API_SETTINGS_KEY,JSON.stringify(settings));
     return true;
   }catch(err){
-    console.error("MyAPISET localStorage 儲存失敗",err);
+    console.error("MyCHAPISET localStorage 儲存失敗",err);
     return false;
   }
 }
@@ -6521,12 +6793,12 @@ async function readApiSettingsFromRememberedDirectory(){
     const directoryHandle=await loadHisHtmlDirectoryHandle();
     if(!directoryHandle || directoryHandle.kind!=="directory") return null;
     if(!(await ensureDirectoryPermission(directoryHandle,"read"))) return null;
-    const handle=await findFileHandleCaseInsensitive(directoryHandle,"MyAPISET.json");
+    const handle=await findFileHandleCaseInsensitive(directoryHandle,"MyCHAPISET.json");
     if(!handle) return null;
     const file=await handle.getFile();
     return JSON.parse(await file.text());
   }catch(err){
-    console.warn("無法從 PathHTML 讀取 MyAPISET.json",err);
+    console.warn("無法從 PathHTML 讀取 MyCHAPISET.json",err);
     return null;
   }
 }
@@ -6547,7 +6819,7 @@ async function ensureFileHandleWritePermission(handle){
 async function writeBlobToFileHandle(fileHandle,blob){
   if(!fileHandle || fileHandle.kind!=="file") throw new Error("未取得設定檔控制代碼");
   if(!(blob instanceof Blob)) throw new Error("待儲存內容格式錯誤");
-  if(!(await ensureFileHandleWritePermission(fileHandle))) throw new Error("未取得 MyAPISET.json 寫入權限");
+  if(!(await ensureFileHandleWritePermission(fileHandle))) throw new Error("未取得 MyCHAPISET.json 寫入權限");
 
   const writable=await fileHandle.createWritable();
   try{
@@ -6584,7 +6856,7 @@ async function chooseApiSettingsFile(){
     const handles=await window.showOpenFilePicker({
       id:"ch-api-settings-v117",
       multiple:false,
-      types:[{description:"MyAPISET.json",accept:{"application/json":[".json"]}}]
+      types:[{description:"MyCHAPISET.json",accept:{"application/json":[".json"]}}]
     });
     const handle=handles && handles[0] ? handles[0] : null;
     if(!handle) return null;
@@ -6619,11 +6891,11 @@ async function importMyApiSetFromFile(){
       if($("apiSettingsLoadStatus")) $("apiSettingsLoadStatus").textContent=`已匯入並自動儲存 ${file.name}`;
       setStatus(`已匯入 ${file.name}，並直接覆寫儲存該設定檔。`,false);
     }else if(autoSaveResult.mode==="path-html"){
-      if($("apiSettingsLoadStatus")) $("apiSettingsLoadStatus").textContent=`已匯入 ${file.name}，並儲存至 ${autoSaveResult.directoryName}\\MyAPISET.json`;
-      setStatus(`已匯入 ${file.name}，並自動儲存至 PathHTML 的 MyAPISET.json。`,false);
+      if($("apiSettingsLoadStatus")) $("apiSettingsLoadStatus").textContent=`已匯入 ${file.name}，並儲存至 ${autoSaveResult.directoryName}\\MyCHAPISET.json`;
+      setStatus(`已匯入 ${file.name}，並自動儲存至 PathHTML 的 MyCHAPISET.json。`,false);
     }else if(autoSaveResult.mode==="download"){
-      if($("apiSettingsLoadStatus")) $("apiSettingsLoadStatus").textContent=`已匯入 ${file.name}，並自動下載 MyAPISET.json`;
-      setStatus(`已匯入 ${file.name}；瀏覽器無法直接覆寫原檔，已自動下載 MyAPISET.json。`,false);
+      if($("apiSettingsLoadStatus")) $("apiSettingsLoadStatus").textContent=`已匯入 ${file.name}，並自動下載 MyCHAPISET.json`;
+      setStatus(`已匯入 ${file.name}；瀏覽器無法直接覆寫原檔，已自動下載 MyCHAPISET.json。`,false);
     }else if(autoSaveResult.localSaved){
       if($("apiSettingsLoadStatus")) $("apiSettingsLoadStatus").textContent=`已匯入 ${file.name}；設定已保存於瀏覽器`;
       setStatus(`已匯入 ${file.name}；設定已保存於瀏覽器。`,false);
@@ -6636,8 +6908,8 @@ async function importMyApiSetFromFile(){
       setStatus("已取消匯入設定。",false);
       return false;
     }
-    console.error("MyAPISET.json 匯入失敗",err);
-    if($("apiSettingsLoadStatus")) $("apiSettingsLoadStatus").textContent="匯入失敗：請確認 MyAPISET.json 格式與寫入權限";
+    console.error("MyCHAPISET.json 匯入失敗",err);
+    if($("apiSettingsLoadStatus")) $("apiSettingsLoadStatus").textContent="匯入失敗：請確認 MyCHAPISET.json 格式與寫入權限";
     setStatus(`匯入設定失敗：${err?.message || String(err)}`,true);
     return false;
   }
@@ -6645,7 +6917,7 @@ async function importMyApiSetFromFile(){
 
 async function loadMyApiSet(){
   resetApiSettingsForm();
-  let external=await loadJson("MyAPISET.json");
+  let external=await loadConfiguredJson("MyCHAPISET.json");
   let source="";
 
   if(external){
@@ -6660,7 +6932,7 @@ async function loadMyApiSet(){
     applyApiSettings(settings);
     saveApiSettingsLocal(getApiSettings());
     apiSettingsLoadedFromFile=true;
-    if($("apiSettingsLoadStatus")) $("apiSettingsLoadStatus").textContent=`已讀取 ${source} MyAPISET.json`;
+    if($("apiSettingsLoadStatus")) $("apiSettingsLoadStatus").textContent=`已讀取 ${source} MyCHAPISET.json`;
     return true;
   }
 
@@ -6672,15 +6944,15 @@ async function loadMyApiSet(){
       if(stored && typeof stored==="object" && !Array.isArray(stored)){
         applyApiSettings(stored);
         apiSettingsLoadedFromFile=true;
-        if($("apiSettingsLoadStatus")) $("apiSettingsLoadStatus").textContent="已從瀏覽器自動帶入 MyAPISET 設定";
+        if($("apiSettingsLoadStatus")) $("apiSettingsLoadStatus").textContent="已從瀏覽器自動帶入 MyCHAPISET 設定";
         return true;
       }
     }
   }catch(err){
-    console.warn("瀏覽器 MyAPISET 設定回讀失敗",err);
+    console.warn("瀏覽器 MyCHAPISET 設定回讀失敗",err);
   }
 
-  if($("apiSettingsLoadStatus")) $("apiSettingsLoadStatus").textContent="同目錄、PathHTML 與瀏覽器均無 MyAPISET 設定";
+  if($("apiSettingsLoadStatus")) $("apiSettingsLoadStatus").textContent="同目錄、PathHTML 與瀏覽器均無 MyCHAPISET 設定";
   return false;
 }
 
@@ -6708,31 +6980,31 @@ async function autoSaveImportedApiSettings(){
   const localSaved=saveApiSettingsLocal(settings);
   const blob=new Blob([JSON.stringify(settings,null,2)],{type:"application/json;charset=utf-8"});
 
-  // 使用 showOpenFilePicker 匯入時，直接覆寫同一個 MyAPISET.json。
+  // 使用 showOpenFilePicker 匯入時，直接覆寫同一個 MyCHAPISET.json。
   if(importedApiSettingsWriteGranted && importedApiSettingsFileHandle && importedApiSettingsFileHandle.kind==="file"){
     try{
       await writeBlobToFileHandle(importedApiSettingsFileHandle,blob);
       return {saved:true,mode:"imported-file",localSaved};
     }catch(err){
-      console.warn("匯入後覆寫原 MyAPISET.json 失敗，改用 PathHTML 或下載",err);
+      console.warn("匯入後覆寫原 MyCHAPISET.json 失敗，改用 PathHTML 或下載",err);
     }
   }
 
-  // 若 PathHTML 已經取得寫入授權，直接在該目錄建立／覆寫 MyAPISET.json。
+  // 若 PathHTML 已經取得寫入授權，直接在該目錄建立／覆寫 MyCHAPISET.json。
   const directoryHandle=(cachedHisHtmlDirectoryHandle && cachedHisHtmlDirectoryHandle.kind==="directory")
     ? cachedHisHtmlDirectoryHandle
     : null;
   if(directoryHandle){
     try{
-      await writeBlobToDirectory(directoryHandle,blob,"MyAPISET.json");
+      await writeBlobToDirectory(directoryHandle,blob,"MyCHAPISET.json");
       return {saved:true,mode:"path-html",localSaved,directoryName:directoryHandle.name};
     }catch(err){
-      console.warn("匯入後寫入 PathHTML 的 MyAPISET.json 失敗，改用下載",err);
+      console.warn("匯入後寫入 PathHTML 的 MyCHAPISET.json 失敗，改用下載",err);
     }
   }
 
   // 傳統 input 選檔無法取得原檔寫入權限，只能以下載方式產生設定檔。
-  const downloaded=downloadBlobDirectly(blob,"MyAPISET.json");
+  const downloaded=downloadBlobDirectly(blob,"MyCHAPISET.json");
   return {saved:downloaded,mode:downloaded?"download":"local",localSaved};
 }
 
@@ -6745,18 +7017,18 @@ async function exportMyApiSetJson(){
   if(importedApiSettingsWriteGranted && importedApiSettingsFileHandle && importedApiSettingsFileHandle.kind==="file"){
     try{
       await writeBlobToFileHandle(importedApiSettingsFileHandle,blob);
-      if($("apiSettingsLoadStatus")) $("apiSettingsLoadStatus").textContent="MyAPISET.json 已覆寫儲存";
+      if($("apiSettingsLoadStatus")) $("apiSettingsLoadStatus").textContent="MyCHAPISET.json 已覆寫儲存";
       apiSettingsLoadedFromFile=true;
       return true;
     }catch(err){
-      console.warn("覆寫匯入的 MyAPISET.json 失敗，改開啟另存新檔",err);
+      console.warn("覆寫匯入的 MyCHAPISET.json 失敗，改開啟另存新檔",err);
     }
   }
 
   // 手動按鍵必須立刻開啟另存視窗，不先 await 目錄權限，避免瀏覽器取消使用者操作資格。
   const saved=await saveBlobWithPathPicker(
     blob,
-    "MyAPISET.json",
+    "MyCHAPISET.json",
     "API 設定 JSON",
     {"application/json":[".json"]},
     "child-health-api-settings-v116",
@@ -6765,7 +7037,7 @@ async function exportMyApiSetJson(){
       : null
   );
   if(saved){
-    if($("apiSettingsLoadStatus")) $("apiSettingsLoadStatus").textContent="MyAPISET.json 已儲存";
+    if($("apiSettingsLoadStatus")) $("apiSettingsLoadStatus").textContent="MyCHAPISET.json 已儲存";
     apiSettingsLoadedFromFile=true;
     return true;
   }
@@ -6782,7 +7054,7 @@ function setApiSettingsEditing(editing){
   document.querySelectorAll('input[name="apiEnvironment"]').forEach(input=>{
     input.disabled=!apiSettingsEditing;
   });
-  ["apiKeyInput","apiAccountInput","apiPasswordInput","thirdIdInput","hospitalIdSettingInput"].forEach(id=>{
+  ["apiUrlInput","apiKeyInput","apiAccountInput","apiPasswordInput","thirdIdInput","hospitalIdSettingInput"].forEach(id=>{
     if($(id)) $(id).readOnly=!apiSettingsEditing;
   });
   if($("renewPasswordBtn")) $("renewPasswordBtn").disabled=!apiSettingsEditing;
@@ -7040,10 +7312,7 @@ function closeUploadQueryDialog(){
   document.body.style.overflow="";
 }
 
-const API_ENDPOINTS={
-  test:"https://60.251.1.235/MedicalRecord_HPA/api/CHMSSForHis/",
-  production:"https://203.65.42.199/MedicalRecord_HPA/api/CHMSSForHis/"
-};
+const API_ENDPOINTS=DEFAULT_API_ENDPOINTS;
 
 function showConnectionTestResult(content,title="GetTokenID 回傳內容",state=""){
   const panel=$("connectionTestResult");
@@ -7295,7 +7564,7 @@ async function testGetTokenIDConnection(){
   const settings=getApiSettings();
   const environment=settings.environment==="production" ? "production" : "test";
   const environmentName=environment==="production" ? "正式機" : "測試機";
-  const upstreamEndpoint=`${API_ENDPOINTS[environment]}GetTokenID`;
+  const upstreamEndpoint=`${getActiveApiBaseUrl(settings)}GetTokenID`;
 
   saveApiSettingsLocal(settings);
 
@@ -7341,6 +7610,7 @@ async function testGetTokenIDConnection(){
   try{
     const response=await postProxyJson(proxyEndpoint,{
       environment,
+      apiUrl:getActiveApiBaseUrl(settings),
       apiKey:settings.apiKey,
       account:settings.account,
       password:activePassword
@@ -7915,11 +8185,88 @@ function validateChildJsonFile(file){
   return true;
 }
 
-function isHealthAgencyApiRecord(data){
+/* v158：API上傳存檔採 CHMSS 陣列格式，實際健檢資料位於 entry.formData；
+   familyRecords / healthRecords 需展開回原問題欄位，才能正確回復表單。 */
+function isFlatHealthAgencyApiRecord(data){
   if(!data || typeof data!=="object" || Array.isArray(data)) return false;
   const keys=Object.keys(data).map(key=>String(key).toLowerCase());
   const required=["funcdate","birthday","personalid","name","iccode"];
   return required.every(key=>keys.includes(key));
+}
+
+function flattenApiQuestionRecords(record){
+  if(!record || typeof record!=="object" || Array.isArray(record)) return record;
+  const flat={...record};
+  for(const listName of ["familyRecords","healthRecords"]){
+    const list=record[listName];
+    if(!Array.isArray(list)) continue;
+    for(const item of list){
+      if(!item || typeof item!=="object") continue;
+      const questionId=String(item.questionId ?? item.QuestionId ?? "").trim();
+      if(!questionId) continue;
+      const answer=item.answer ?? item.Answer ?? "";
+      flat[questionId]=answer;
+    }
+  }
+  return flat;
+}
+
+function extractHealthAgencyApiImport(data){
+  const visited=new Set();
+
+  const scan=value=>{
+    if(!value || typeof value!=="object") return null;
+    if(visited.has(value)) return null;
+    visited.add(value);
+
+    if(Array.isArray(value)){
+      for(const item of value){
+        const found=scan(item);
+        if(found) return found;
+      }
+      return null;
+    }
+
+    // v158 之後的 API 存檔會附完整回復資料，優先使用它。
+    const restoreData=value.restoreData ?? value.restore_data ?? value.fullRestoreData;
+    if(restoreData && typeof restoreData==="object"){
+      return {restoreData,record:null};
+    }
+
+    if(isFlatHealthAgencyApiRecord(value)){
+      return {restoreData:null,record:flattenApiQuestionRecords(value)};
+    }
+
+    // v149～v157 的 [未上傳]/[已上傳] JSON：[{ ..., formData:{...} }]
+    const formData=value.formData ?? value.FormData;
+    if(formData && typeof formData==="object"){
+      const flat=flattenApiQuestionRecords(formData);
+      if(isFlatHealthAgencyApiRecord(flat)) return {restoreData:null,record:flat};
+    }
+
+    // 相容代理封包、舊測試存檔及其他常見包裝。
+    const directCandidates=[
+      value.requestData,
+      value.RequestData,
+      value.record,
+      value.Record,
+      value.data,
+      value.Data,
+      value.payload,
+      value.Payload
+    ];
+    for(const candidate of directCandidates){
+      const found=scan(candidate);
+      if(found) return found;
+    }
+    return null;
+  };
+
+  return scan(data);
+}
+
+function isHealthAgencyApiRecord(data){
+  return !!extractHealthAgencyApiImport(data)?.record;
 }
 
 function apiValue(data,key,defaultValue=""){
@@ -8108,8 +8455,25 @@ async function importHealthAgencyApiRecord(record,fileName){
 }
 
 async function importJsonData(data,fileName){
-  if(isHealthAgencyApiRecord(data)){
-    return await importHealthAgencyApiRecord(data,fileName);
+  const apiImport=extractHealthAgencyApiImport(data);
+  if(apiImport?.restoreData){
+    const restoreData=apiImport.restoreData;
+    const importedExamForm=extractImportedExamForm(restoreData);
+    isRestoring=true;
+    applyData(restoreData);
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{
+        applyExamFormData(importedExamForm);
+        isRestoring=false;
+        saveFullPageStateNow();
+        localStorage.setItem(STORAGE_KEY,JSON.stringify(collectData()));
+        setStatus(`已讀取 ${fileName}，API上傳存檔的完整內容已正確回復。`,false);
+      });
+    });
+    return;
+  }
+  if(apiImport?.record){
+    return await importHealthAgencyApiRecord(apiImport.record,fileName);
   }
 
   const importedExamForm=extractImportedExamForm(data);
@@ -8137,12 +8501,11 @@ $("readBtn").addEventListener("click",async()=>{
         excludeAcceptAllOption:true,
         types:[
           {
-            description:"兒童健檢 JSON（CT-／CU-／[未上傳]／[已上傳]）",
-            accept:{"application/json":[".json"],"text/json":[".json"]}
-          },
-          {
-            description:"兒童健檢 Excel",
-            accept:{"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":[".xlsx"]}
+            description:"兒童健檢檔案（JSON／XLSX）",
+            accept:{
+              "application/json":[".json"],
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":[".xlsx"]
+            }
           }
         ]
       };
@@ -8289,6 +8652,11 @@ $("webSettingsBtn").addEventListener("click",()=>{
   openPathSettingsDialog();
 });
 
+$("hisDriveSelect").addEventListener("change",()=>{
+  syncHisDrivePaths();
+  setPathSettingsMessage(`HIS 磁碟機已切換為 ${$("hisDriveSelect").value}:，PathPatdb 與 PathTemp 已同步更新。`,false);
+});
+
 $("pathSettingsCancelBtn").addEventListener("click",()=>{
   closePathSettingsDialog();
 });
@@ -8312,13 +8680,15 @@ $("pathSettingsSaveBtn").addEventListener("click",async()=>{
 
   const button=$("pathSettingsSaveBtn");
   button.disabled=true;
-  setPathSettingsMessage("正在儲存 MyPathSET.json…",false);
+  setPathSettingsMessage("正在儲存 MyCHPathSET.json…",false);
   try{
     const previousPatdb=currentPathSettings?.PathPatdb || "";
     const previousTemp=currentPathSettings?.PathTemp || "";
     const previousHtml=currentPathSettings?.PathHTML || "";
     const previousApi=currentPathSettings?.PathAPI || "";
     rememberPathSettingsLocal(settings);
+    // v163：新的設定必須成功寫入 PathHTML\MyCHPathSET.json 後才重新標記為已完成。
+    setPathSettingsCompleted(false);
     if(normalizedWindowsPath(previousPatdb)!==normalizedWindowsPath(settings.PathPatdb)){
       cachedHisDirectoryHandle=null;
       rememberConfiguredPath(HIS_PATDB_CONFIG_PATH_KEY,"");
@@ -8342,15 +8712,15 @@ $("pathSettingsSaveBtn").addEventListener("click",async()=>{
     }
     const saved=await exportMyPathSetJson(settings);
     if(saved){
-      setPathSettingsMessage("MyPathSET.json 已儲存，設定也已記錄供下次自動帶入。",false);
-      setStatus("路徑設定已儲存為 MyPathSET.json。",false);
+      setPathSettingsMessage("MyCHPathSET.json 已儲存到 PathHTML，設定也已記錄供下次自動帶入。",false);
+      setStatus("路徑設定已儲存為 PathHTML\\MyCHPathSET.json。",false);
       window.setTimeout(()=>closePathSettingsDialog(),450);
     }else{
       setPathSettingsMessage("已取消檔案儲存；設定仍已記錄於目前瀏覽器。",false);
-      setStatus("路徑設定已記錄於瀏覽器，但未輸出 MyPathSET.json。",false);
+      setStatus("已取消 PathHTML 資料夾授權，MyCHPathSET.json 未儲存。",false);
     }
   }catch(err){
-    console.error("MyPathSET.json 儲存失敗",err);
+    console.error("MyCHPathSET.json 儲存失敗",err);
     setPathSettingsMessage(`儲存失敗：${err && err.message ? err.message : "未知錯誤"}`,true);
   }finally{
     button.disabled=false;
@@ -8385,10 +8755,10 @@ $("disclaimerOverlay").addEventListener("click",event=>{
   if(event.target===$("disclaimerOverlay")) closeDisclaimerDialog();
 });
 
-$("pathHtmlBrowseBtn").addEventListener("click",()=>choosePathDirectory("html","pathHtmlInput"));
-$("pathPatdbBrowseBtn").addEventListener("click",()=>choosePathDirectory("patdb","pathPatdbInput"));
-$("pathTempBrowseBtn").addEventListener("click",()=>choosePathDirectory("temp","pathTempInput"));
-$("pathApiBrowseBtn").addEventListener("click",()=>choosePathDirectory("api","pathApiInput"));
+
+
+
+
 
 $("childQueryBtn").addEventListener("click",()=>{
   openPatdbQueryDialog();
@@ -8452,11 +8822,12 @@ window.addEventListener("resize",syncTempHorizontalControls);
 $("settingsBtn").addEventListener("click",async()=>{
   const panel=$("uploadSettingsPanel");
   if(panel.hidden){
+    await loadMyApiSet();
     panel.hidden=false;
     $("settingsBtn").textContent="關閉設定";
     setStatus(apiSettingsLoadedFromFile
-      ? "已自動帶入 MyAPISET.json；按「變更」後可修改。"
-      : "未讀取到 MyAPISET.json，欄位維持空白；按「變更」後可填寫。",false);
+      ? "已自動帶入 MyCHAPISET.json；按「變更」後可修改。"
+      : "未讀取到 MyCHAPISET.json，欄位維持空白；按「變更」後可填寫。",false);
   }else{
     panel.hidden=true;
     $("settingsBtn").textContent="API連線設定";
@@ -8487,9 +8858,9 @@ $("apiSettingsSaveBtn").addEventListener("click",async()=>{
   if(saved){
     apiSettingsEditSnapshot=null;
     setApiSettingsEditing(false);
-    setStatus("API 設定已儲存為 MyAPISET.json；password 為測試機密碼，password2 為正式機密碼。",false);
+    setStatus("API 設定已儲存為 MyCHAPISET.json；password 為測試機密碼，password2 為正式機密碼。",false);
   }else{
-    setStatus("MyAPISET.json 尚未儲存；設定仍保留在目前畫面。",true);
+    setStatus("MyCHAPISET.json 尚未儲存；設定仍保留在目前畫面。",true);
   }
 });
 
@@ -8586,10 +8957,9 @@ window.addEventListener("DOMContentLoaded",async()=>{
     scheduleAutoSave();
   });
   $("districtSelect").addEventListener("change",scheduleAutoSave);
+  const hasPathSettings=await initializePathSettings();
   await loadReferenceData();
-  loadOpdSettingsLocal();
   await loadMyApiSet();
-  await initializePathSettings();
   try{
     cachedUploadQueryApiHandle=await loadApiDirectoryHandle();
   }catch(_err){
@@ -8600,7 +8970,12 @@ window.addEventListener("DOMContentLoaded",async()=>{
   await checkLocalProxyHealth(false);
   if(!restoreFullPageState()) recalculate();
   updateWaitingListButtonVisibility();
-  initializeFirstLaunchSavePathSetup();
+  if(!hasPathSettings){
+    window.setTimeout(()=>{
+      openPathSettingsDialog();
+      setPathSettingsMessage("尚未完成 MyCHPathSET.json 路徑設定，請確認內容並按「儲存設定」。",true);
+    },120);
+  }
 });
 </script>
 
@@ -9304,6 +9679,8 @@ async function buildChmssArchiveEntry(record,{status="pending",lastApiResult=nul
     personalId:identity.personalId,
     name:identity.name,
     formData,
+    // v158：本機 API上傳存檔保留完整頁面資料，供「讀取」精確回復；不影響實際 API payload。
+    restoreData:getFullExamDataForExport(),
     status:String(status || "pending"),
     lastApiResult:lastApiResult && typeof lastApiResult==="object" ? {
       MSG_CODE:String(lastApiResult.MSG_CODE ?? ""),
@@ -9330,6 +9707,7 @@ async function requestFreshTokenForUpload(settings,health){
   const endpoint=localProxyUrl(LOCAL_PROXY_PATHS.getToken,health.baseUrl);
   const response=await postProxyJson(endpoint,{
     environment,
+    apiUrl:getActiveApiBaseUrl(settings),
     apiKey:settings.apiKey,
     account:settings.account,
     password:activePassword
@@ -9573,7 +9951,7 @@ async function uploadLastSavedHealthCare(){
   const settings=getApiSettings();
   const environment=settings.environment==="production" ? "production" : "test";
   const environmentName=environment==="production" ? "正式機" : "測試機";
-  const upstreamEndpoint=`${API_ENDPOINTS[environment]}UploadHealthCare`;
+  const upstreamEndpoint=`${getActiveApiBaseUrl(settings)}UploadHealthCare`;
   button.textContent="上傳中...";
   setStatus(`已儲存 ${pendingFileName}；正在取得 TokenID 並上傳健檢資料，請稍候...`,false);
 
@@ -9585,6 +9963,7 @@ async function uploadLastSavedHealthCare(){
     const uploadPayload=buildUploadHealthCarePayload(record,tokenResult.token);
     const envelope={
       environment,
+      apiUrl:getActiveApiBaseUrl(settings),
       apiKey:settings.apiKey,
       action:"UploadHealthCare",
       method:"POST",
